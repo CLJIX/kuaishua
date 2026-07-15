@@ -1,0 +1,14 @@
+# "小题快刷" - Apache URL 重写规则
+# 将所有请求统一转发到 index.php 入口文件，实现简易路由分发
+
+RewriteEngine On
+
+# 如果请求的是真实存在的文件，直接访问（不转发）
+RewriteCond %{REQUEST_FILENAME} !-f
+
+# 如果请求的是真实存在的目录，直接访问（不转发）
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# 将所有其他请求转发到 index.php，通过 page 参数传递路径信息
+# QSA: 保留原有查询字符串参数  L: 这是最后一条规则，匹配后不再继续
+RewriteRule ^(.*)$ index.php?page=$1 [QSA,L]

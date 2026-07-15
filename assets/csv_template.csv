@@ -1,0 +1,12 @@
+题目类型,题面,选项A,选项B,选项C,选项D,正确答案,解析,难度,分类名称,标签
+single,PHP中哪个函数用于加密密码？,md5,password_hash,sha256,base64,B,password_hash是PHP推荐的密码加密函数,2,PHP基础,安全
+single,MySQL中用于删除表的命令是？,DROP TABLE,DELETE TABLE,REMOVE TABLE,CLEAR TABLE,A,DROP TABLE用于删除整个表结构,1,数据库,MySQL
+single,"以下代码输出什么？<code>echo strlen('Hello');</code>",5,6,4,错误,A,"strlen返回字符串长度,Hello共5个字符",3,PHP基础,PHP基础
+multiple,以下哪些是合法的PHP数据类型？,string,integer,float,character,"A,B,C",PHP不支持character类型,1,PHP基础,数据类型
+multiple,以下哪些是HTML5新增的语义标签？,header,section,div,article,"A,B,D",header/section/article是HTML5新增语义标签,2,前端基础,"HTML,HTML5,前端"
+multiple,"以下哪些函数可用于输出内容？<code>echo</code> <code>print</code> <code>printf</code>",echo,print,var_dump,printf,"A,B,D",echo/print/printf均可输出内容,3,PHP基础,"PHP,输出"
+single,CSS中哪个属性用于设置元素透明度？,opacity,visibility,display,alpha,A,opacity属性用于设置元素透明度,2,前端基础,CSS
+single,HTTP状态码404表示什么？,服务器错误,未找到,重定向,请求超时,B,404 Not Found表示请求的资源不存在,1,网络基础,HTTP
+single,"变量<code>$x = ""10"";</code>中$x的数据类型是？",integer,string,float,array,B,双引号包裹的内容为字符串类型,1,PHP基础,
+multiple,以下哪些是有效的CSS选择器？,.class,#id,*,@keyframes,"A,B,C",@keyframes是动画规则不是选择器,2,前端基础,
+single,Git中哪个命令用于查看提交历史？,git log,git status,git diff,git show,A,git log用于查看提交历史记录,1,,Git
