@@ -33,9 +33,11 @@
                             </span>
 
                             <!-- 所属分类 -->
+                            <?php if (!empty($question['category_name'])): ?>
                             <span class="badge bg-light text-dark border fs-6">
                                 <i class="bi bi-folder"></i> <?= e($question['category_name']) ?>
                             </span>
+                            <?php endif; ?>
                         </div>
 
                         <!-- 计时器（右上角） -->
@@ -55,10 +57,8 @@
                         </div>
                     <?php endif; ?>
 
-                    <!-- 题面（支持 HTML） -->
-                    <div class="question-content fs-5 mb-4 lh-lg">
-                        <?= purify($question['content']) ?>
-                    </div>
+                    <!-- 题面（支持 Markdown + HTML） -->
+                    <div id="question-content" class="question-content md-content fs-5 mb-4 lh-lg"></div>
 
                     <!--
                         答题表单（id="question-form" 同时作为选项容器和提交表单）
@@ -127,9 +127,7 @@
                     <div class="collapse" id="explanation-panel">
                         <div class="card-body pt-0">
                             <?php if (!empty($question['explanation'])): ?>
-                                <div class="lh-lg">
-                                    <?= purify($question['explanation']) ?>
-                                </div>
+                                <div id="question-explanation" class="lh-lg md-content"></div>
                             <?php else: ?>
                                 <p class="text-muted mb-0">暂无解析</p>
                             <?php endif; ?>
@@ -165,7 +163,7 @@
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">分类</span>
-                            <strong><?= e($question['category_name']) ?></strong>
+                            <strong><?= e($question['category_name'] ?? '未分类') ?></strong>
                         </li>
                         <li class="d-flex justify-content-between py-2">
                             <span class="text-muted">选项数</span>
@@ -190,3 +188,29 @@
     </div>
 
 </div>
+
+<!-- Markdown + LaTeX 渲染脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var contentEl = document.getElementById('question-content');
+    if (contentEl) {
+        contentEl.innerHTML = DOMPurify.sanitize(marked.parse(<?= json_encode($question['content'], JSON_UNESCAPED_UNICODE) ?>));
+    }
+    var explEl = document.getElementById('question-explanation');
+    if (explEl) {
+        explEl.innerHTML = DOMPurify.sanitize(marked.parse(<?= json_encode($question['explanation'] ?? '', JSON_UNESCAPED_UNICODE) ?>));
+    }
+    // 渲染 LaTeX 公式
+    if (typeof renderMathInElement !== 'undefined') {
+        var opts = {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        };
+        if (contentEl) renderMathInElement(contentEl, opts);
+        if (explEl) renderMathInElement(explEl, opts);
+    }
+});
+</script>

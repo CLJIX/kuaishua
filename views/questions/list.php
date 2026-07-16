@@ -99,8 +99,8 @@
                                 #<?= (int)$item['id'] ?>
                             </span>
                             <div>
-                                <!-- 题面预览（截取前100字） -->
-                                <h6 class="mb-1"><?= e(mb_substr(strip_tags($item['content']), 0, 100)) ?></h6>
+                                <!-- 题面预览（截取前100字，去除 Markdown/HTML 语法） -->
+                                <h6 class="mb-1"><?= e(mdExcerpt($item['content'], 100)) ?></h6>
                                 <div class="d-flex flex-wrap gap-1 mt-1">
                                     <!-- 类型标签 -->
                                     <?php if ($item['question_type'] === 'single'): ?>

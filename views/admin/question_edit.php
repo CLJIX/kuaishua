@@ -81,10 +81,13 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                         <!-- 题面 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">题面</label>
-                            <textarea name="content" class="form-control" rows="6"
-                                      placeholder="输入题目内容（支持 HTML）"
-                                      required><?= e($isEdit ? ($question['content'] ?? '') : '') ?></textarea>
-                            <div class="form-text">支持 HTML 格式</div>
+                            <div id="editor-content" class="md-editor-wrap">
+                                <div class="md-toolbar"></div>
+                                <div class="md-body" style="height:360px">
+                                    <textarea name="content" required placeholder="输入题目内容（支持 Markdown 格式）"><?= e($isEdit ? ($question['content'] ?? '') : '') ?></textarea>
+                                    <div class="md-preview md-content"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 难度 -->
@@ -189,8 +192,13 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                         <!-- 解析 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">解析</label>
-                            <textarea name="explanation" class="form-control" rows="4"
-                                      placeholder="题目解析（可选）"><?= e($isEdit ? ($question['explanation'] ?? '') : '') ?></textarea>
+                            <div id="editor-explanation" class="md-editor-wrap">
+                                <div class="md-toolbar"></div>
+                                <div class="md-body" style="height:280px">
+                                    <textarea name="explanation" placeholder="题目解析（可选，支持 Markdown 格式）"><?= e($isEdit ? ($question['explanation'] ?? '') : '') ?></textarea>
+                                    <div class="md-preview md-content"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 提交按钮 -->
@@ -210,7 +218,10 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
     </div>
 </div>
 
-<!-- 选项动态管理 & 标签同步脚本 -->
+<!-- 轻量 Markdown 编辑器（仅 6KB，复用已加载的 marked.js + DOMPurify） -->
+<script src="assets/js/md-editor.js"></script>
+
+<!-- 选项动态管理 & 编辑器初始化脚本 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // ---- 标签 checkbox 同步到隐藏字段 ----
@@ -274,5 +285,9 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.closest('.option-row').remove();
         }
     });
+
+    // ---- 轻量 Markdown 编辑器初始化 ----
+    mdEditorInit('editor-content');
+    mdEditorInit('editor-explanation');
 });
 </script>

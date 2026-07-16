@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小题快刷 - 在线刷题平台</title>
-    <!-- Bootstrap 5 CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Bootstrap 5 CSS（本地托管） -->
+    <link href="assets/css/vendor/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons（本地托管） -->
+    <link href="assets/css/vendor/bootstrap-icons.css" rel="stylesheet">
+    <!-- Markdown 渲染：marked.js + DOMPurify（本地托管，国内加载稳定） -->
+    <script src="assets/js/vendor/marked.min.js"></script>
+    <script src="assets/js/vendor/purify.min.js"></script>
+    <!-- LaTeX 公式渲染：KaTeX（本地托管） -->
+    <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+    <script src="assets/vendor/katex/katex.min.js"></script>
+    <script src="assets/vendor/katex/auto-render.min.js"></script>
     <!-- 自定义样式 -->
     <link href="assets/css/style.css" rel="stylesheet">
 </head>

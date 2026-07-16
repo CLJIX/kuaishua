@@ -171,3 +171,39 @@ function purify(string $html): string {
     $clean = preg_replace('/data\s*:(?!image\/)/i', '', $clean);
     return $clean;
 }
+
+/**
+ * 将内容安全地嵌入到 HTML data 属性中，供客户端 Markdown 渲染
+ * 先 HTML 转义，防止 XSS；客户端由 marked.js + DOMPurify 渲染
+ *
+ * @param string $content 原始内容（可能是 Markdown 或 HTML）
+ * @return string 转义后的安全字符串，可直接放入 data-* 属性
+ */
+function mdAttr(string $content): string {
+    return htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * 去除 Markdown 语法符号，返回纯文本摘要
+ * 用于列表页等只需要简短预览的场景
+ *
+ * @param string $content 原始内容（可能是 Markdown 或 HTML）
+ * @param int $length 截取长度（默认 100）
+ * @return string 纯文本摘要
+ */
+function mdExcerpt(string $content, int $length = 100): string {
+    // 先去除 HTML 标签
+    $text = strip_tags($content);
+    // 去除常见 Markdown 语法符号
+    $text = preg_replace('/^#{1,6}\s+/m', '', $text);           // 标题 #
+    $text = preg_replace('/\*\*(.+?)\*\*/', '$1', $text);       // 粗体 **
+    $text = preg_replace('/\*(.+?)\*/', '$1', $text);           // 斜体 *
+    $text = preg_replace('/`(.+?)`/', '$1', $text);             // 行内代码 `
+    $text = preg_replace('/!\[.*?\]\(.*?\)/', '', $text);       // 图片
+    $text = preg_replace('/\[(.+?)\]\(.*?\)/', '$1', $text);    // 链接
+    $text = preg_replace('/^[-*+]\s+/m', '', $text);            // 无序列表
+    $text = preg_replace('/^\d+\.\s+/m', '', $text);            // 有序列表
+    $text = preg_replace('/^>\s+/m', '', $text);                // 引用
+    $text = preg_replace('/\s+/', ' ', $text);                  // 多余空白
+    return mb_substr(trim($text), 0, $length);
+}

@@ -1,4 +1,4 @@
-<div class="container my-4">
+﻿<div class="container my-4">
 
     <!-- 面包屑导航 -->
     <nav aria-label="breadcrumb" class="mb-3">
@@ -152,9 +152,7 @@
                         <h5 class="card-title mb-3">
                             <i class="bi bi-lightbulb text-warning"></i> 题目解析
                         </h5>
-                        <div class="lh-lg">
-                            <?= purify($question['explanation']) ?>
-                        </div>
+                        <div id="result-explanation" class="lh-lg md-content"></div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -209,3 +207,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php endif; ?>
+
+<!-- Markdown + LaTeX 渲染脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('result-explanation');
+    if (el) {
+        el.innerHTML = DOMPurify.sanitize(marked.parse(<?= json_encode($question['explanation'] ?? '', JSON_UNESCAPED_UNICODE) ?>));
+        // 渲染 LaTeX 公式
+        if (typeof renderMathInElement !== 'undefined') {
+            renderMathInElement(el, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+    }
+});
+</script>
