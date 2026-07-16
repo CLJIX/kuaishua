@@ -9,7 +9,9 @@
     <!-- 筛选栏 -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <form method="GET" action="<?= url('questions', ['action' => 'list']) ?>">
+            <form method="GET" action="index.php">
+                <input type="hidden" name="page" value="questions">
+                <input type="hidden" name="action" value="list">
                 <div class="row g-2 align-items-end">
                     <!-- 分类筛选 -->
                     <div class="col-sm-6 col-md-2">

@@ -22,6 +22,11 @@
                         </div>
                         <h2 class="text-white mb-1">回答正确！</h2>
                         <p class="text-white-50 mb-0">太棒了，继续保持！</p>
+                        <?php if ($nextQuestionId): ?>
+                            <p class="text-white-50 mt-2 mb-0" id="countdown-text">1秒后自动跳转下一题...</p>
+                        <?php else: ?>
+                            <p class="text-white-50 mt-2 mb-0" id="countdown-text">本分类题目已全部刷完，1秒后返回题库...</p>
+                        <?php endif; ?>
                     <?php elseif ($isPartial): ?>
                         <!-- 半对 -->
                         <div class="result-icon mb-3">
@@ -156,9 +161,15 @@
 
             <!-- 操作按钮 -->
             <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
-                <a href="<?= url('questions', ['action' => 'list']) ?>" class="btn btn-primary btn-lg">
-                    <i class="bi bi-arrow-right-circle"></i> 继续刷题
-                </a>
+                <?php if ($nextQuestionId): ?>
+                    <a href="<?= url('questions', ['action' => 'detail', 'id' => $nextQuestionId]) ?>" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-right-circle"></i> 下一题
+                    </a>
+                <?php else: ?>
+                    <a href="<?= url('questions', ['action' => 'list']) ?>" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle"></i> 本分类已刷完，返回题库
+                    </a>
+                <?php endif; ?>
                 <a href="<?= url('questions', ['action' => 'detail', 'id' => $question['id']]) ?>" class="btn btn-outline-secondary btn-lg">
                     <i class="bi bi-arrow-repeat"></i> 再练一题
                 </a>
@@ -168,3 +179,33 @@
     </div>
 
 </div>
+
+<?php if ($isCorrect): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($nextQuestionId): ?>
+        var nextUrl = '<?= url('questions', ['action' => 'detail', 'id' => $nextQuestionId]) ?>';
+    <?php else: ?>
+        var nextUrl = '<?= url('questions', ['action' => 'list']) ?>';
+    <?php endif; ?>
+
+    var seconds = 1;
+    var countdownEl = document.getElementById('countdown-text');
+    var timer = setInterval(function() {
+        seconds--;
+        if (seconds <= 0) {
+            clearInterval(timer);
+            window.location.href = nextUrl;
+        } else {
+            if (countdownEl) {
+                <?php if ($nextQuestionId): ?>
+                    countdownEl.textContent = seconds + '秒后自动跳转下一题...';
+                <?php else: ?>
+                    countdownEl.textContent = '本分类题目已全部刷完，' + seconds + '秒后返回题库...';
+                <?php endif; ?>
+            }
+        }
+    }, 1000);
+});
+</script>
+<?php endif; ?>

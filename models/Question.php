@@ -551,6 +551,62 @@ class QuestionModel {
         ];
     }
 
+    /**
+     * 获取同分类下的下一道未答题目ID
+     * 优先查找 id > currentId 的未答题目，找不到则回绕查找 id < currentId 的未答题目
+     * 如果当前题目没有分类，则在全局题库中查找未答题目
+     * 所有题目都已答过时返回 null
+     * @param int $currentId 当前题目ID
+     * @param int|null $categoryId 当前题目分类ID
+     * @param int $userId 当前用户ID
+     * @return int|null 下一题ID，没有则返回null
+     */
+    public function getNextQuestionId(int $currentId, ?int $categoryId, int $userId = 0): ?int {
+        try {
+            // 构造分类筛选条件
+            if ($categoryId !== null) {
+                $categoryWhere = 'q.category_id = :category_id AND';
+                $categoryParam = [':category_id' => $categoryId];
+            } else {
+                $categoryWhere = '';
+                $categoryParam = [];
+            }
+
+            // 1. 优先查找同分类中 id > currentId 且未答过的题目
+            $sql1 = "SELECT q.id FROM questions q
+                     LEFT JOIN practice_records pr ON pr.question_id = q.id AND pr.user_id = :user_id1
+                     WHERE {$categoryWhere} q.id > :current_id1 AND pr.id IS NULL
+                     ORDER BY q.id ASC LIMIT 1";
+            $params1 = array_merge($categoryParam, [
+                ':user_id1' => $userId,
+                ':current_id1' => $currentId,
+            ]);
+            $stmt = $this->db->prepare($sql1);
+            $stmt->execute($params1);
+            $row = $stmt->fetch();
+            if ($row) {
+                return (int) $row['id'];
+            }
+
+            // 2. 回绕查找：id < currentId 且未答过的题目
+            $sql2 = "SELECT q.id FROM questions q
+                     LEFT JOIN practice_records pr ON pr.question_id = q.id AND pr.user_id = :user_id2
+                     WHERE {$categoryWhere} q.id < :current_id2 AND pr.id IS NULL
+                     ORDER BY q.id ASC LIMIT 1";
+            $params2 = array_merge($categoryParam, [
+                ':user_id2' => $userId,
+                ':current_id2' => $currentId,
+            ]);
+            $stmt = $this->db->prepare($sql2);
+            $stmt->execute($params2);
+            $row = $stmt->fetch();
+            return $row ? (int) $row['id'] : null;
+        } catch (PDOException $e) {
+            error_log('获取下一题ID失败: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     // =========================================================
     // 私有辅助方法
     // =========================================================

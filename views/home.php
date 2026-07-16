@@ -87,7 +87,7 @@
     <div class="row g-3">
         <?php foreach ($categories as $category): ?>
         <div class="col-sm-6 col-lg-4">
-            <a href="<?= url('questions', ['action' => 'list', 'category' => $category['id']]) ?>"
+            <a href="<?= url('questions', ['action' => 'list', 'category_id' => $category['id']]) ?>"
                class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 category-card">
                     <div class="card-body">

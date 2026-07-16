@@ -116,12 +116,28 @@ class PracticeController {
 
         $questionId   = (int) ($result['question_id'] ?? 0);
         $question     = $questionId > 0 ? $this->questionModel->findById($questionId) : null;
+
+        // 题目可能已被删除，需防御性检查
+        if (!$question) {
+            setFlash('warning', '题目不存在或已被删除');
+            redirect(url('questions', ['action' => 'list']));
+            return;
+        }
+
         $isCorrect    = (bool) ($result['is_correct'] ?? false);
         $isPartial    = (bool) ($result['is_partial'] ?? false);
         $correctAnswer= $result['correct_answer'] ?? '';
         $userAnswer   = $result['user_answer'] ?? '';
         $timeSpent    = (int) ($result['time_spent'] ?? 0);
         $recordId     = (int) ($result['record_id'] ?? 0);
+
+        // 获取当前题目的分类ID，用于查询同分类的下一题
+        $categoryId   = $question['category_id'] ?? null;
+        // 获取当前用户ID
+        $user         = currentUser();
+        $userId       = $user ? (int) $user['id'] : 0;
+        // 查询同分类下的下一题ID（优先未答题目，支持回绕）
+        $nextQuestionId = $this->questionModel->getNextQuestionId($questionId, $categoryId, $userId);
 
         // 渲染结果页视图
         require_once __DIR__ . '/../views/layouts/header.php';
