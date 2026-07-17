@@ -77,7 +77,7 @@
                             <?php foreach ($question['options'] as $option): ?>
                                 <div class="option-item" data-label="<?= e($option['option_label']) ?>">
                                     <span class="option-label"><?= e($option['option_label']) ?></span>
-                                    <span class="option-text"><?= e($option['option_text']) ?></span>
+                                    <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
                                 </div>
                             <?php endforeach; ?>
 
@@ -100,7 +100,7 @@
                             <?php foreach ($question['options'] as $option): ?>
                                 <div class="option-item" data-label="<?= e($option['option_label']) ?>">
                                     <span class="option-label"><?= e($option['option_label']) ?></span>
-                                    <span class="option-text"><?= e($option['option_text']) ?></span>
+                                    <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -212,5 +212,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (contentEl) renderMathInElement(contentEl, opts);
         if (explEl) renderMathInElement(explEl, opts);
     }
+    // 渲染选项文字（Markdown + LaTeX）
+    document.querySelectorAll('.option-text[data-raw]').forEach(function(el) {
+        var raw = el.getAttribute('data-raw');
+        if (raw) {
+            el.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(el, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+    });
 });
 </script>

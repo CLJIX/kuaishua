@@ -99,7 +99,7 @@
                         <div class="col-md-6">
                             <div class="d-flex align-items-center p-3 rounded border missed-option">
                                 <span class="option-label me-3"><?= e($opt['option_label']) ?></span>
-                                <span class="flex-fill"><?= e($opt['option_text']) ?></span>
+                                <span class="option-text flex-fill" data-raw="<?= e($opt['option_text']) ?>"></span>
                                 <i class="bi bi-check-circle-fill text-success fs-5"></i>
                             </div>
                         </div>
@@ -131,7 +131,7 @@
                             <!-- 选项标签 -->
                             <span class="option-label me-3"><?= e($option['option_label']) ?></span>
                             <!-- 选项文字 -->
-                            <span class="flex-fill"><?= e($option['option_text']) ?></span>
+                            <span class="option-text flex-fill" data-raw="<?= e($option['option_text']) ?>"></span>
                             <!-- 状态图标 -->
                             <?php if ($isCorrectOption): ?>
                                 <i class="bi bi-check-circle-fill text-success fs-5"></i>
@@ -225,5 +225,22 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    // 渲染选项文字（Markdown + LaTeX）
+    var katexOpts = {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false
+    };
+    document.querySelectorAll('.option-text[data-raw]').forEach(function(optEl) {
+        var raw = optEl.getAttribute('data-raw');
+        if (raw) {
+            optEl.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(optEl, katexOpts);
+            }
+        }
+    });
 });
 </script>

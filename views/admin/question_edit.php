@@ -158,13 +158,12 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                                 }
                                 foreach ($optionLabels as $label):
                                 ?>
-                                <div class="option-row d-flex align-items-center mb-2">
-                                    <span class="badge bg-primary me-2" style="min-width:30px"><?= e($label) ?></span>
-                                    <input type="text"
-                                           name="option_<?= e($label) ?>"
-                                           class="form-control"
-                                           placeholder="选项 <?= e($label) ?> 的内容"
-                                           value="<?= e($isEdit ? ($existingOptions[$label] ?? '') : '') ?>">
+                                <div class="option-row d-flex align-items-start mb-2">
+                                    <span class="badge bg-primary me-2 mt-1" style="min-width:30px"><?= e($label) ?></span>
+                                    <textarea name="option_<?= e($label) ?>"
+                                              class="form-control"
+                                              rows="2"
+                                              placeholder="选项 <?= e($label) ?> 的内容（支持 Markdown 格式）"><?= e($isEdit ? ($existingOptions[$label] ?? '') : '') ?></textarea>
                                     <button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2"
                                             title="删除选项">
                                         <i class="bi bi-x-lg"></i>
@@ -265,9 +264,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         var row = document.createElement('div');
-        row.className = 'option-row d-flex align-items-center mb-2';
-        row.innerHTML = '<span class="badge bg-primary me-2" style="min-width:30px">' + nextLabel + '</span>' +
-            '<input type="text" name="option_' + nextLabel + '" class="form-control" placeholder="选项 ' + nextLabel + ' 的内容">' +
+        row.className = 'option-row d-flex align-items-start mb-2';
+        row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + nextLabel + '</span>' +
+            '<textarea name="option_' + nextLabel + '" class="form-control" rows="2" placeholder="选项 ' + nextLabel + ' 的内容（支持 Markdown 格式）"></textarea>' +
             '<button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2" title="删除选项">' +
             '<i class="bi bi-x-lg"></i></button>';
         container.appendChild(row);

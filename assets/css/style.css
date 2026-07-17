@@ -117,6 +117,44 @@
 .option-text {
     flex: 1;
     font-size: 1rem;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+/* 选项内 Markdown 渲染内容适配 */
+.option-text p {
+    margin-bottom: 0.3em;
+}
+.option-text p:last-child {
+    margin-bottom: 0;
+}
+.option-text code {
+    background: #f0f0f0;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #d63384;
+}
+.option-text pre {
+    background: #f8f9fa;
+    padding: 0.5em 0.75em;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+    margin-bottom: 0.3em;
+}
+.option-text pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+.option-text img {
+    max-width: 100%;
+    height: auto;
+}
+.option-text .katex-display {
+    margin: 0.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 /* ===== 答题结果页 ===== */
