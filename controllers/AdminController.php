@@ -122,19 +122,29 @@ class AdminController {
             // ---- 收集选项数据 ----
             $optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
             $options      = [];
-            foreach ($optionLabels as $label) {
-                $optionText = trim(postParam('option_' . $label, ''));
-                if ($optionText === '') { continue; }
 
-                // 正确答案：单选为单个字母，多选为逗号分隔
+            // 判断题：强制固定选项为 A=对 B=错
+            if ($data['question_type'] === 'judge') {
                 $correctAnswers = array_map('trim', explode(',', strtoupper(postParam('correct_answer', ''))));
-                $isCorrect      = in_array($label, $correctAnswers, true) ? 1 : 0;
-
-                $options[] = [
-                    'option_label' => $label,
-                    'option_text'  => $optionText,
-                    'is_correct'   => $isCorrect,
+                $options = [
+                    ['option_label' => 'A', 'option_text' => '对', 'is_correct' => in_array('A', $correctAnswers, true) ? 1 : 0],
+                    ['option_label' => 'B', 'option_text' => '错', 'is_correct' => in_array('B', $correctAnswers, true) ? 1 : 0],
                 ];
+            } else {
+                foreach ($optionLabels as $label) {
+                    $optionText = trim(postParam('option_' . $label, ''));
+                    if ($optionText === '') { continue; }
+
+                    // 正确答案：单选为单个字母，多选为逗号分隔
+                    $correctAnswers = array_map('trim', explode(',', strtoupper(postParam('correct_answer', ''))));
+                    $isCorrect      = in_array($label, $correctAnswers, true) ? 1 : 0;
+
+                    $options[] = [
+                        'option_label' => $label,
+                        'option_text'  => $optionText,
+                        'is_correct'   => $isCorrect,
+                    ];
+                }
             }
 
             // ---- 基础验证 ----
@@ -295,8 +305,8 @@ class AdminController {
                 // 跳过空行
                 if (count($row) === 1 && trim($row[0]) === '') { continue; }
 
-                // 第一行如果是表头则跳过（检测第一列是否包含 single/multiple）
-                if ($rowNum === 1 && !in_array(strtolower(trim($row[0])), ['single', 'multiple'], true)) {
+                // 第一行如果是表头则跳过（检测第一列是否包含 single/multiple/judge）
+                if ($rowNum === 1 && !in_array(strtolower(trim($row[0])), ['single', 'multiple', 'judge'], true)) {
                     continue;
                 }
 
@@ -327,8 +337,8 @@ class AdminController {
                 $tagNamesStr = implode(',', $tagParts);
 
                 // 校验题目类型
-                if (!in_array($questionType, ['single', 'multiple'], true)) {
-                    $parseErrors[] = "第 {$rowNum} 行：题目类型无效（{$questionType}），应为 single 或 multiple";
+                if (!in_array($questionType, ['single', 'multiple', 'judge'], true)) {
+                    $parseErrors[] = "第 {$rowNum} 行：题目类型无效（{$questionType}），应为 single、multiple 或 judge";
                     continue;
                 }
 
@@ -340,13 +350,22 @@ class AdminController {
                 // 构建选项数组
                 $correctAnswers = array_map('trim', explode(',', $correctStr));
                 $options = [];
-                foreach (['A' => $optA, 'B' => $optB, 'C' => $optC, 'D' => $optD] as $label => $text) {
-                    if ($text === '') { continue; }
-                    $options[] = [
-                        'option_label' => $label,
-                        'option_text'  => $text,
-                        'is_correct'   => in_array($label, $correctAnswers, true) ? 1 : 0,
+
+                // 判断题：强制固定选项为 A=对 B=错
+                if ($questionType === 'judge') {
+                    $options = [
+                        ['option_label' => 'A', 'option_text' => '对', 'is_correct' => in_array('A', $correctAnswers, true) ? 1 : 0],
+                        ['option_label' => 'B', 'option_text' => '错', 'is_correct' => in_array('B', $correctAnswers, true) ? 1 : 0],
                     ];
+                } else {
+                    foreach (['A' => $optA, 'B' => $optB, 'C' => $optC, 'D' => $optD] as $label => $text) {
+                        if ($text === '') { continue; }
+                        $options[] = [
+                            'option_label' => $label,
+                            'option_text'  => $text,
+                            'is_correct'   => in_array($label, $correctAnswers, true) ? 1 : 0,
+                        ];
+                    }
                 }
 
                 // 检查是否设置了有效的正确答案

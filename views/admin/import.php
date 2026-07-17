@@ -86,7 +86,7 @@
                             <a href="assets/csv_template.csv" download="题目导入模板.csv" class="btn btn-outline-success btn-sm">
                                 <i class="bi bi-download"></i> 下载 CSV 导入模板
                             </a>
-                            <p class="form-text mt-1 mb-0">模板包含多道示例题目（含单选/多选/HTML题面/多标签等），可直接编辑后上传导入</p>
+                            <p class="form-text mt-1 mb-0">模板包含多道示例题目（含单选/多选/判断/HTML题面/多标签等），可直接编辑后上传导入</p>
                         </div>
                     </div>
                 </div>

@@ -321,7 +321,7 @@ class QuestionModel {
         // 判断半对（仅多选题）
         $isPartial = false;
 
-        if ($question['question_type'] === 'single') {
+        if ($question['question_type'] === 'single' || $question['question_type'] === 'judge') {
             // 单选题：用户答案为单个字符串
             $isCorrect = (strtoupper(trim((string) $userAnswer)) === strtoupper($correctLabels[0] ?? ''));
         } else {

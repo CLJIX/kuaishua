@@ -34,6 +34,7 @@
                             <option value="">全部类型</option>
                             <option value="single" <?= ($filters['question_type'] ?? '') === 'single' ? 'selected' : '' ?>>单选题</option>
                             <option value="multiple" <?= ($filters['question_type'] ?? '') === 'multiple' ? 'selected' : '' ?>>多选题</option>
+                            <option value="judge" <?= ($filters['question_type'] ?? '') === 'judge' ? 'selected' : '' ?>>判断题</option>
                         </select>
                     </div>
 
@@ -105,6 +106,8 @@
                                     <!-- 类型标签 -->
                                     <?php if ($item['question_type'] === 'single'): ?>
                                         <span class="badge bg-info">单选题</span>
+                                    <?php elseif ($item['question_type'] === 'judge'): ?>
+                                        <span class="badge bg-success">判断题</span>
                                     <?php else: ?>
                                         <span class="badge bg-warning text-dark">多选题</span>
                                     <?php endif; ?>

@@ -20,6 +20,8 @@
                             <!-- 题目类型标签 -->
                             <?php if ($question['question_type'] === 'single'): ?>
                                 <span class="badge bg-info fs-6">单选题</span>
+                            <?php elseif ($question['question_type'] === 'judge'): ?>
+                                <span class="badge bg-success fs-6">判断题</span>
                             <?php else: ?>
                                 <span class="badge bg-warning text-dark fs-6">多选题</span>
                             <?php endif; ?>
@@ -150,7 +152,7 @@
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">类型</span>
-                            <strong><?= $question['question_type'] === 'single' ? '单选题' : '多选题' ?></strong>
+                            <strong><?= $question['question_type'] === 'single' ? '单选题' : ($question['question_type'] === 'judge' ? '判断题' : '多选题') ?></strong>
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">难度</span>

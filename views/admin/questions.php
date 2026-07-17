@@ -11,7 +11,7 @@
 // 难度映射
 $difficultyMap = [1 => '简单', 2 => '中等', 3 => '困难'];
 $difficultyColors = [1 => 'success', 2 => 'warning', 3 => 'danger'];
-$typeMap = ['single' => '单选', 'multiple' => '多选'];
+$typeMap = ['single' => '单选', 'multiple' => '多选', 'judge' => '判断'];
 // 实例化题目模型，用于加载选项数据（显示正确答案）
 $_questionModel = new QuestionModel();
 ?>

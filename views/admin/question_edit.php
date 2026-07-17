@@ -1,7 +1,7 @@
 <?php
 /**
  * 管理后台 - 题目新增/编辑表单
- * 支持单选/多选，动态选项管理，标签多选
+ * 支持单选/多选/判断，动态选项管理，标签多选
  *
  * @var bool  $isEdit     是否编辑模式
  * @var array $question   编辑时的题目详情（含 options 和 tags），新增时为 null
@@ -66,14 +66,18 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                         <!-- 题目类型 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">题目类型</label>
-                            <select name="question_type" class="form-select" style="max-width:200px">
+                            <select name="question_type" id="question-type" class="form-select" style="max-width:200px">
                                 <option value="single"
                                     <?= ($isEdit && ($question['question_type'] ?? '') === 'single') ? 'selected' : (!$isEdit ? 'selected' : '') ?>>
-                                    单选
+                                    单选题
                                 </option>
                                 <option value="multiple"
                                     <?= ($isEdit && ($question['question_type'] ?? '') === 'multiple') ? 'selected' : '' ?>>
-                                    多选
+                                    多选题
+                                </option>
+                                <option value="judge"
+                                    <?= ($isEdit && ($question['question_type'] ?? '') === 'judge') ? 'selected' : '' ?>>
+                                    判断题
                                 </option>
                             </select>
                         </div>
@@ -238,13 +242,61 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', syncTags);
     });
 
-    // ---- 选项动态管理 ----
+    // ---- 题型切换与判断题选项锁定 ----
+    var typeSelect = document.getElementById('question-type');
     var container = document.getElementById('options-container');
     var addBtn = document.getElementById('add-option-btn');
     var allLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+    var isJudgeMode = (typeSelect.value === 'judge');
 
-    // 添加选项
+    // 切换判断题模式：固定选项为 A=对 B=错，禁止增删
+    function applyJudgeMode() {
+        isJudgeMode = true;
+        container.innerHTML = '';
+        [['A', '对'], ['B', '错']].forEach(function(item) {
+            var row = document.createElement('div');
+            row.className = 'option-row d-flex align-items-start mb-2';
+            row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + item[0] + '</span>' +
+                '<textarea name="option_' + item[0] + '" class="form-control" rows="2">' + item[1] + '</textarea>';
+            container.appendChild(row);
+        });
+        addBtn.style.display = 'none';
+    }
+
+    // 恢复普通模式（切出判断题时）
+    function exitJudgeMode() {
+        isJudgeMode = false;
+        container.innerHTML = '';
+        ['A', 'B', 'C', 'D'].forEach(function(label) {
+            var row = document.createElement('div');
+            row.className = 'option-row d-flex align-items-start mb-2';
+            row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + label + '</span>' +
+                '<textarea name="option_' + label + '" class="form-control" rows="2" placeholder="选项 ' + label + ' 的内容（支持 Markdown 格式）"></textarea>' +
+                '<button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2" title="删除选项">' +
+                '<i class="bi bi-x-lg"></i></button>';
+            container.appendChild(row);
+        });
+        addBtn.style.display = '';
+    }
+
+    typeSelect.addEventListener('change', function() {
+        if (this.value === 'judge') {
+            applyJudgeMode();
+        } else if (isJudgeMode) {
+            exitJudgeMode();
+        }
+    });
+
+    // 初始加载时如果是判断题则锁定
+    if (typeSelect.value === 'judge') {
+        applyJudgeMode();
+    }
+
+    // ---- 选项动态管理 ----
+
+    // 添加选项（判断题模式下不允许）
     addBtn.addEventListener('click', function() {
+        if (isJudgeMode) return;
         var existingLabels = [];
         container.querySelectorAll('.option-row .badge').forEach(function(badge) {
             existingLabels.push(badge.textContent.trim());
@@ -272,10 +324,11 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(row);
     });
 
-    // 删除选项（事件委托）
+    // 删除选项（事件委托，判断题模式下不允许）
     container.addEventListener('click', function(e) {
         var btn = e.target.closest('.remove-option-btn');
         if (btn) {
+            if (isJudgeMode) return;
             var rows = container.querySelectorAll('.option-row');
             if (rows.length <= 2) {
                 alert('至少需要保留 2 个选项');
