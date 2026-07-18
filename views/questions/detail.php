@@ -22,6 +22,8 @@
                                 <span class="badge bg-info fs-6">单选题</span>
                             <?php elseif ($question['question_type'] === 'judge'): ?>
                                 <span class="badge bg-success fs-6">判断题</span>
+                            <?php elseif ($question['question_type'] === 'fill'): ?>
+                                <span class="badge bg-secondary fs-6">填空题</span>
                             <?php else: ?>
                                 <span class="badge bg-warning text-dark fs-6">多选题</span>
                             <?php endif; ?>
@@ -76,12 +78,22 @@
                             <input type="hidden" name="time_spent" id="time-spent-input" value="">
 
                             <!-- 选项区域（交互由 JS initOptionSelection() 驱动） -->
-                            <?php foreach ($question['options'] as $option): ?>
-                                <div class="option-item" data-label="<?= e($option['option_label']) ?>">
-                                    <span class="option-label"><?= e($option['option_label']) ?></span>
-                                    <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
+                            <?php if ($question['question_type'] === 'fill'): ?>
+                                <!-- 填空题：文本输入框 -->
+                                <div class="mb-3">
+                                    <label for="fill-answer-input" class="form-label text-muted">请填写答案</label>
+                                    <input type="text" id="fill-answer-input" class="form-control form-control-lg"
+                                           placeholder="输入你的答案..." autocomplete="off">
                                 </div>
-                            <?php endforeach; ?>
+                            <?php else: ?>
+                                <!-- 选择题：选项列表 -->
+                                <?php foreach ($question['options'] as $option): ?>
+                                    <div class="option-item" data-label="<?= e($option['option_label']) ?>">
+                                        <span class="option-label"><?= e($option['option_label']) ?></span>
+                                        <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
 
                             <!-- 已答过提示 -->
                             <?php if ($hasAnswered): ?>
@@ -99,12 +111,20 @@
                     <?php else: ?>
                         <!-- 未登录时：只显示选项，不显示提交按钮 -->
                         <div id="question-form" data-type="<?= e($question['question_type']) ?>">
-                            <?php foreach ($question['options'] as $option): ?>
-                                <div class="option-item" data-label="<?= e($option['option_label']) ?>">
-                                    <span class="option-label"><?= e($option['option_label']) ?></span>
-                                    <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
+                            <?php if ($question['question_type'] === 'fill'): ?>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">请填写答案</label>
+                                    <input type="text" class="form-control form-control-lg" disabled
+                                           placeholder="登录后作答">
                                 </div>
-                            <?php endforeach; ?>
+                            <?php else: ?>
+                                <?php foreach ($question['options'] as $option): ?>
+                                    <div class="option-item" data-label="<?= e($option['option_label']) ?>">
+                                        <span class="option-label"><?= e($option['option_label']) ?></span>
+                                        <span class="option-text" data-raw="<?= e($option['option_text']) ?>"></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                         <!-- 未登录提示 -->
                         <div class="alert alert-warning d-flex align-items-center mt-3">
@@ -152,7 +172,12 @@
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">类型</span>
-                            <strong><?= $question['question_type'] === 'single' ? '单选题' : ($question['question_type'] === 'judge' ? '判断题' : '多选题') ?></strong>
+                            <strong>
+                                <?php
+                                $typeLabels = ['single' => '单选题', 'multiple' => '多选题', 'judge' => '判断题', 'fill' => '填空题'];
+                                echo $typeLabels[$question['question_type']] ?? '未知';
+                                ?>
+                            </strong>
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">难度</span>

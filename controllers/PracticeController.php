@@ -53,6 +53,9 @@ class PracticeController {
             $answer = array_map('strtoupper', array_map('trim', $answer));
             sort($answer);
             $answerStr = implode(',', $answer);
+        } elseif ($question['question_type'] === 'fill') {
+            // 填空题：保留原始输入，不做大小写转换
+            $answerStr = trim((string) $answer);
         } else {
             $answerStr = strtoupper(trim((string) $answer));
         }

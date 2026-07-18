@@ -79,6 +79,10 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                                     <?= ($isEdit && ($question['question_type'] ?? '') === 'judge') ? 'selected' : '' ?>>
                                     判断题
                                 </option>
+                                <option value="fill"
+                                    <?= ($isEdit && ($question['question_type'] ?? '') === 'fill') ? 'selected' : '' ?>>
+                                    填空题
+                                </option>
                             </select>
                         </div>
 
@@ -149,8 +153,8 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                             <?php endif; ?>
                         </div>
 
-                        <!-- 选项区域 -->
-                        <div class="mb-3">
+                        <!-- 选项区域（选择题专用） -->
+                        <div class="mb-3" id="options-section">
                             <label class="form-label fw-bold">选项</label>
                             <div id="options-container">
                                 <?php
@@ -181,14 +185,24 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                             </button>
                         </div>
 
-                        <!-- 正确答案 -->
-                        <div class="mb-3">
+                        <!-- 正确答案（选择题专用） -->
+                        <div class="mb-3" id="correct-answer-section">
                             <label class="form-label fw-bold">正确答案</label>
                             <input type="text" name="correct_answer" class="form-control" style="max-width:200px"
                                    placeholder="如 A 或 A,C"
                                    value="<?= e($isEdit ? $correctAnswer : '') ?>">
                             <div class="form-text">
                                 单选填写单个字母（如 A），多选填写逗号分隔的字母（如 A,C）
+                            </div>
+                        </div>
+
+                        <!-- 标准答案（填空题专用） -->
+                        <div class="mb-3" id="standard-answer-section" style="display:none">
+                            <label class="form-label fw-bold">标准答案</label>
+                            <textarea name="standard_answer" class="form-control" rows="2"
+                                      placeholder="填空题的标准答案，多个可接受答案用 | 分隔，如：answer1|answer2"><?= e($isEdit ? ($question['standard_answer'] ?? '') : '') ?></textarea>
+                            <div class="form-text">
+                                支持多个可接受答案，用 <code>|</code> 分隔（不区分大小写）
                             </div>
                         </div>
 
@@ -242,16 +256,19 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', syncTags);
     });
 
-    // ---- 题型切换与判断题选项锁定 ----
+    // ---- 题型切换与特殊模式 ----
     var typeSelect = document.getElementById('question-type');
     var container = document.getElementById('options-container');
     var addBtn = document.getElementById('add-option-btn');
     var allLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
-    var isJudgeMode = (typeSelect.value === 'judge');
+    var optionsSection = document.getElementById('options-section');
+    var correctAnswerSection = document.getElementById('correct-answer-section');
+    var standardAnswerSection = document.getElementById('standard-answer-section');
+    var currentMode = typeSelect.value; // 'single', 'multiple', 'judge', 'fill'
 
-    // 切换判断题模式：固定选项为 A=对 B=错，禁止增删
+    // 判断题模式：固定选项为 A=对 B=错，禁止增删
     function applyJudgeMode() {
-        isJudgeMode = true;
+        currentMode = 'judge';
         container.innerHTML = '';
         [['A', '对'], ['B', '错']].forEach(function(item) {
             var row = document.createElement('div');
@@ -261,11 +278,23 @@ document.addEventListener('DOMContentLoaded', function() {
             container.appendChild(row);
         });
         addBtn.style.display = 'none';
+        // 显示选择题区域，隐藏填空题区域
+        optionsSection.style.display = '';
+        correctAnswerSection.style.display = '';
+        standardAnswerSection.style.display = 'none';
     }
 
-    // 恢复普通模式（切出判断题时）
-    function exitJudgeMode() {
-        isJudgeMode = false;
+    // 填空题模式：隐藏选项和正确答案，显示标准答案
+    function applyFillMode() {
+        currentMode = 'fill';
+        optionsSection.style.display = 'none';
+        correctAnswerSection.style.display = 'none';
+        standardAnswerSection.style.display = '';
+    }
+
+    // 恢复普通模式（单选/多选）
+    function exitSpecialMode() {
+        currentMode = typeSelect.value;
         container.innerHTML = '';
         ['A', 'B', 'C', 'D'].forEach(function(label) {
             var row = document.createElement('div');
@@ -277,26 +306,34 @@ document.addEventListener('DOMContentLoaded', function() {
             container.appendChild(row);
         });
         addBtn.style.display = '';
+        // 显示选择题区域，隐藏填空题区域
+        optionsSection.style.display = '';
+        correctAnswerSection.style.display = '';
+        standardAnswerSection.style.display = 'none';
     }
 
     typeSelect.addEventListener('change', function() {
         if (this.value === 'judge') {
             applyJudgeMode();
-        } else if (isJudgeMode) {
-            exitJudgeMode();
+        } else if (this.value === 'fill') {
+            applyFillMode();
+        } else {
+            exitSpecialMode();
         }
     });
 
-    // 初始加载时如果是判断题则锁定
+    // 初始加载时根据题型设置模式
     if (typeSelect.value === 'judge') {
         applyJudgeMode();
+    } else if (typeSelect.value === 'fill') {
+        applyFillMode();
     }
 
     // ---- 选项动态管理 ----
 
     // 添加选项（判断题模式下不允许）
     addBtn.addEventListener('click', function() {
-        if (isJudgeMode) return;
+        if (currentMode === 'judge') return;
         var existingLabels = [];
         container.querySelectorAll('.option-row .badge').forEach(function(badge) {
             existingLabels.push(badge.textContent.trim());
@@ -328,7 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
     container.addEventListener('click', function(e) {
         var btn = e.target.closest('.remove-option-btn');
         if (btn) {
-            if (isJudgeMode) return;
+            if (currentMode === 'judge') return;
             var rows = container.querySelectorAll('.option-row');
             if (rows.length <= 2) {
                 alert('至少需要保留 2 个选项');

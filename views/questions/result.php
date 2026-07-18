@@ -109,7 +109,8 @@
             </div>
             <?php endif; ?>
 
-            <!-- 各选项状态卡片 -->
+            <!-- 各选项状态卡片（填空题无选项，跳过） -->
+            <?php if ($question['question_type'] !== 'fill'): ?>
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-3"><i class="bi bi-list-check"></i> 选项详情</h5>
@@ -144,6 +145,7 @@
                     <?php endforeach; ?>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- 解析区域 -->
             <?php if (!empty($question['explanation'])): ?>

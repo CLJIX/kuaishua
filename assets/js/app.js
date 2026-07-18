@@ -40,15 +40,33 @@ function initOptionSelection() {
     const questionForm = document.getElementById('question-form');
     if (!questionForm) return;
 
-    const questionType = questionForm.dataset.type; // 'single' or 'multiple'
+    const questionType = questionForm.dataset.type; // 'single', 'multiple', 'judge', 'fill'
+
+    // 填空题：跳过选项绑定，监听输入框同步
+    if (questionType === 'fill') {
+        const fillInput = document.getElementById('fill-answer-input');
+        const answerInput = document.getElementById('answer-input');
+        if (fillInput && answerInput) {
+            // 实时同步
+            fillInput.addEventListener('input', function() {
+                answerInput.value = this.value;
+            });
+            // 提交前兜底同步（防止 input 事件未触发）
+            questionForm.addEventListener('submit', function() {
+                answerInput.value = fillInput.value;
+            });
+        }
+        return;
+    }
+
     const options = questionForm.querySelectorAll('.option-item');
 
     options.forEach(function(option) {
         option.addEventListener('click', function() {
             const label = this.dataset.label; // A, B, C, D
 
-            if (questionType === 'single') {
-                // 单选：清除其他选择
+            if (questionType === 'single' || questionType === 'judge') {
+                // 单选/判断：清除其他选择
                 options.forEach(o => o.classList.remove('selected'));
                 this.classList.add('selected');
                 // 设置隐藏字段值

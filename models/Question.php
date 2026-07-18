@@ -26,15 +26,16 @@ class QuestionModel {
 
             // 插入题目主记录
             $stmt = $this->db->prepare(
-                'INSERT INTO questions (question_type, content, explanation, difficulty, category_id)
-                 VALUES (:question_type, :content, :explanation, :difficulty, :category_id)'
+                'INSERT INTO questions (question_type, content, explanation, standard_answer, difficulty, category_id)
+                 VALUES (:question_type, :content, :explanation, :standard_answer, :difficulty, :category_id)'
             );
             $stmt->execute([
-                ':question_type' => $data['question_type'],
-                ':content'       => $data['content'],
-                ':explanation'   => $data['explanation'] ?? null,
-                ':difficulty'    => $data['difficulty'] ?? 1,
-                ':category_id'   => $data['category_id'] ?? null,
+                ':question_type'   => $data['question_type'],
+                ':content'         => $data['content'],
+                ':explanation'     => $data['explanation'] ?? null,
+                ':standard_answer' => $data['standard_answer'] ?? null,
+                ':difficulty'      => $data['difficulty'] ?? 1,
+                ':category_id'     => $data['category_id'] ?? null,
             ]);
             $questionId = (int) $this->db->lastInsertId();
 
@@ -70,16 +71,18 @@ class QuestionModel {
             // 更新题目主信息
             $stmt = $this->db->prepare(
                 'UPDATE questions SET question_type = :question_type, content = :content,
-                 explanation = :explanation, difficulty = :difficulty, category_id = :category_id
+                 explanation = :explanation, standard_answer = :standard_answer,
+                 difficulty = :difficulty, category_id = :category_id
                  WHERE id = :id'
             );
             $stmt->execute([
-                ':question_type' => $data['question_type'],
-                ':content'       => $data['content'],
-                ':explanation'   => $data['explanation'] ?? null,
-                ':difficulty'    => $data['difficulty'] ?? 1,
-                ':category_id'   => $data['category_id'] ?? null,
-                ':id'            => $id,
+                ':question_type'   => $data['question_type'],
+                ':content'         => $data['content'],
+                ':explanation'     => $data['explanation'] ?? null,
+                ':standard_answer' => $data['standard_answer'] ?? null,
+                ':difficulty'      => $data['difficulty'] ?? 1,
+                ':category_id'     => $data['category_id'] ?? null,
+                ':id'              => $id,
             ]);
 
             // 删除旧选项后重新插入
@@ -300,7 +303,7 @@ class QuestionModel {
      */
     public function checkAnswer(int $questionId, $userAnswer): array {
         // 获取题目信息
-        $stmt = $this->db->prepare('SELECT question_type FROM questions WHERE id = :id LIMIT 1');
+        $stmt = $this->db->prepare('SELECT question_type, standard_answer FROM questions WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $questionId]);
         $question = $stmt->fetch();
 
@@ -308,7 +311,26 @@ class QuestionModel {
             return ['is_correct' => false, 'is_partial' => false, 'correct_answer' => ''];
         }
 
-        // 获取所有正确选项的 label
+        // 填空题：从 standard_answer 字段读取，支持 | 分隔多答案
+        if ($question['question_type'] === 'fill') {
+            $standardAnswer = $question['standard_answer'] ?? '';
+            $acceptedAnswers = array_map('trim', explode('|', $standardAnswer));
+            $userAnswerStr = mb_strtolower(trim((string) $userAnswer));
+            $isCorrect = false;
+            foreach ($acceptedAnswers as $ans) {
+                if ($ans !== '' && mb_strtolower(trim($ans)) === $userAnswerStr) {
+                    $isCorrect = true;
+                    break;
+                }
+            }
+            return [
+                'is_correct'     => $isCorrect,
+                'is_partial'     => false,
+                'correct_answer' => $standardAnswer,
+            ];
+        }
+
+        // 获取所有正确选项的 label（选择题/判断题）
         $stmtCorrect = $this->db->prepare(
             'SELECT option_label FROM question_options
              WHERE question_id = :question_id AND is_correct = 1
@@ -322,7 +344,7 @@ class QuestionModel {
         $isPartial = false;
 
         if ($question['question_type'] === 'single' || $question['question_type'] === 'judge') {
-            // 单选题：用户答案为单个字符串
+            // 单选题/判断题：用户答案为单个字符串
             $isCorrect = (strtoupper(trim((string) $userAnswer)) === strtoupper($correctLabels[0] ?? ''));
         } else {
             // 多选题：将用户答案与正确答案都排序后比较
@@ -520,19 +542,20 @@ class QuestionModel {
         foreach ($questions as $index => $item) {
             try {
                 $data = [
-                    'question_type' => $item['question_type'],
-                    'content'       => $item['content'],
-                    'explanation'   => $item['explanation'] ?? null,
-                    'difficulty'    => $item['difficulty'] ?? 1,
-                    'category_id'   => $item['category_id'] ?? null,
-                    'tags'          => $item['tags'] ?? [],
+                    'question_type'   => $item['question_type'],
+                    'content'         => $item['content'],
+                    'explanation'     => $item['explanation'] ?? null,
+                    'standard_answer' => $item['standard_answer'] ?? null,
+                    'difficulty'      => $item['difficulty'] ?? 1,
+                    'category_id'     => $item['category_id'] ?? null,
+                    'tags'            => $item['tags'] ?? [],
                 ];
                 $options = $item['options'] ?? [];
 
                 if (empty($data['content'])) {
                     throw new Exception('题目内容不能为空');
                 }
-                if (empty($options)) {
+                if ($data['question_type'] !== 'fill' && empty($options)) {
                     throw new Exception('选项不能为空');
                 }
 

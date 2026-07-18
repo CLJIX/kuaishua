@@ -55,9 +55,10 @@ CREATE TABLE tags (
 -- -----------------------------------------------------------
 CREATE TABLE questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    question_type ENUM('single','multiple','judge') NOT NULL COMMENT '题型: single=单选题, multiple=多选题, judge=判断题',
+    question_type ENUM('single','multiple','judge','fill') NOT NULL COMMENT '题型: single=单选题, multiple=多选题, judge=判断题, fill=填空题',
     content TEXT NOT NULL COMMENT '题面内容，支持HTML富文本',
     explanation TEXT COMMENT '答案解析，答错后展示',
+    standard_answer TEXT DEFAULT NULL COMMENT '填空题标准答案，多答案用|分隔',
     difficulty TINYINT DEFAULT 1 COMMENT '难度等级: 1=简单, 2=中等, 3=困难',
     category_id INT DEFAULT NULL COMMENT '所属分类ID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

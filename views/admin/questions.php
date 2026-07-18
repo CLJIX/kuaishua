@@ -11,7 +11,7 @@
 // 难度映射
 $difficultyMap = [1 => '简单', 2 => '中等', 3 => '困难'];
 $difficultyColors = [1 => 'success', 2 => 'warning', 3 => 'danger'];
-$typeMap = ['single' => '单选', 'multiple' => '多选', 'judge' => '判断'];
+$typeMap = ['single' => '单选', 'multiple' => '多选', 'judge' => '判断', 'fill' => '填空'];
 // 实例化题目模型，用于加载选项数据（显示正确答案）
 $_questionModel = new QuestionModel();
 ?>
@@ -118,17 +118,21 @@ $_questionModel = new QuestionModel();
                                             </span>
                                         </td>
                                         <td>
-                                            <?php
-                                            // 加载该题的正确选项标签
-                                            $_options = $_questionModel->getOptions((int)$item['id']);
-                                            $_correctLabels = [];
-                                            foreach ($_options as $_opt) {
-                                                if ($_opt['is_correct']) {
-                                                    $_correctLabels[] = $_opt['option_label'];
+                                            <?php if ($item['question_type'] === 'fill'): ?>
+                                                <span class="badge bg-success"><?= e(mb_substr($item['standard_answer'] ?? '', 0, 20)) ?></span>
+                                            <?php else: ?>
+                                                <?php
+                                                // 加载该题的正确选项标签
+                                                $_options = $_questionModel->getOptions((int)$item['id']);
+                                                $_correctLabels = [];
+                                                foreach ($_options as $_opt) {
+                                                    if ($_opt['is_correct']) {
+                                                        $_correctLabels[] = $_opt['option_label'];
+                                                    }
                                                 }
-                                            }
-                                            ?>
-                                            <span class="badge bg-success"><?= e(implode(', ', $_correctLabels)) ?></span>
+                                                ?>
+                                                <span class="badge bg-success"><?= e(implode(', ', $_correctLabels)) ?></span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php $d = (int)($item['difficulty'] ?? 1); ?>

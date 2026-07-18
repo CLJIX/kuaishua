@@ -113,6 +113,11 @@ class AdminController {
                 'tags'          => [],
             ];
 
+            // 填空题：收集标准答案
+            if ($data['question_type'] === 'fill') {
+                $data['standard_answer'] = trim(postParam('standard_answer', ''));
+            }
+
             // 处理标签（前端提交逗号分隔的标签ID字符串）
             $tagInput = postParam('tags', '');
             if (!empty($tagInput)) {
@@ -130,6 +135,9 @@ class AdminController {
                     ['option_label' => 'A', 'option_text' => '对', 'is_correct' => in_array('A', $correctAnswers, true) ? 1 : 0],
                     ['option_label' => 'B', 'option_text' => '错', 'is_correct' => in_array('B', $correctAnswers, true) ? 1 : 0],
                 ];
+            } elseif ($data['question_type'] === 'fill') {
+                // 填空题：无选项
+                $options = [];
             } else {
                 foreach ($optionLabels as $label) {
                     $optionText = trim(postParam('option_' . $label, ''));
@@ -152,16 +160,22 @@ class AdminController {
             if (empty($data['content'])) {
                 $errors[] = '题目内容不能为空';
             }
-            if (empty($options)) {
-                $errors[] = '请至少添加一个选项';
-            }
-            // 检查是否设置了正确答案
-            $hasCorrect = false;
-            foreach ($options as $opt) {
-                if ($opt['is_correct']) { $hasCorrect = true; break; }
-            }
-            if (!$hasCorrect) {
-                $errors[] = '请设置正确答案';
+            if ($data['question_type'] === 'fill') {
+                if (empty($data['standard_answer'])) {
+                    $errors[] = '填空题必须设置标准答案';
+                }
+            } else {
+                if (empty($options)) {
+                    $errors[] = '请至少添加一个选项';
+                }
+                // 检查是否设置了正确答案
+                $hasCorrect = false;
+                foreach ($options as $opt) {
+                    if ($opt['is_correct']) { $hasCorrect = true; break; }
+                }
+                if (!$hasCorrect) {
+                    $errors[] = '请设置正确答案';
+                }
             }
 
             if (!empty($errors)) {
@@ -305,8 +319,8 @@ class AdminController {
                 // 跳过空行
                 if (count($row) === 1 && trim($row[0]) === '') { continue; }
 
-                // 第一行如果是表头则跳过（检测第一列是否包含 single/multiple/judge）
-                if ($rowNum === 1 && !in_array(strtolower(trim($row[0])), ['single', 'multiple', 'judge'], true)) {
+                // 第一行如果是表头则跳过（检测第一列是否包含 single/multiple/judge/fill）
+                if ($rowNum === 1 && !in_array(strtolower(trim($row[0])), ['single', 'multiple', 'judge', 'fill'], true)) {
                     continue;
                 }
 
@@ -337,8 +351,8 @@ class AdminController {
                 $tagNamesStr = implode(',', $tagParts);
 
                 // 校验题目类型
-                if (!in_array($questionType, ['single', 'multiple', 'judge'], true)) {
-                    $parseErrors[] = "第 {$rowNum} 行：题目类型无效（{$questionType}），应为 single、multiple 或 judge";
+                if (!in_array($questionType, ['single', 'multiple', 'judge', 'fill'], true)) {
+                    $parseErrors[] = "第 {$rowNum} 行：题目类型无效（{$questionType}），应为 single、multiple、judge 或 fill";
                     continue;
                 }
 
@@ -348,16 +362,26 @@ class AdminController {
                 }
 
                 // 构建选项数组
-                $correctAnswers = array_map('trim', explode(',', $correctStr));
                 $options = [];
+                $standardAnswer = null;
 
-                // 判断题：强制固定选项为 A=对 B=错
-                if ($questionType === 'judge') {
+                if ($questionType === 'fill') {
+                    // 填空题：第7列为标准答案文本
+                    $standardAnswer = trim($row[6]);
+                    if ($standardAnswer === '') {
+                        $parseErrors[] = "第 {$rowNum} 行：填空题必须设置标准答案";
+                        continue;
+                    }
+                } elseif ($questionType === 'judge') {
+                    // 判断题：强制固定选项为 A=对 B=错
+                    $correctAnswers = array_map('trim', explode(',', $correctStr));
                     $options = [
                         ['option_label' => 'A', 'option_text' => '对', 'is_correct' => in_array('A', $correctAnswers, true) ? 1 : 0],
                         ['option_label' => 'B', 'option_text' => '错', 'is_correct' => in_array('B', $correctAnswers, true) ? 1 : 0],
                     ];
                 } else {
+                    // 单选/多选：从选项列构建
+                    $correctAnswers = array_map('trim', explode(',', $correctStr));
                     foreach (['A' => $optA, 'B' => $optB, 'C' => $optC, 'D' => $optD] as $label => $text) {
                         if ($text === '') { continue; }
                         $options[] = [
@@ -368,14 +392,16 @@ class AdminController {
                     }
                 }
 
-                // 检查是否设置了有效的正确答案
-                $hasCorrect = false;
-                foreach ($options as $opt) {
-                    if ($opt['is_correct']) { $hasCorrect = true; break; }
-                }
-                if (!$hasCorrect) {
-                    $parseErrors[] = "第 {$rowNum} 行：未设置有效的正确答案";
-                    continue;
+                // 检查是否设置了有效的正确答案（填空题已在上面对检查）
+                if ($questionType !== 'fill') {
+                    $hasCorrect = false;
+                    foreach ($options as $opt) {
+                        if ($opt['is_correct']) { $hasCorrect = true; break; }
+                    }
+                    if (!$hasCorrect) {
+                        $parseErrors[] = "第 {$rowNum} 行：未设置有效的正确答案";
+                        continue;
+                    }
                 }
 
                 // 处理分类（按名称查找或自动创建）
@@ -413,13 +439,14 @@ class AdminController {
                 }
 
                 $questions[] = [
-                    'question_type' => $questionType,
-                    'content'       => $contentText,
-                    'explanation'   => $explanation,
-                    'difficulty'    => $difficulty,
-                    'category_id'   => $categoryId,
-                    'tags'          => $tagIds,
-                    'options'       => $options,
+                    'question_type'   => $questionType,
+                    'content'         => $contentText,
+                    'explanation'     => $explanation,
+                    'standard_answer' => $standardAnswer,
+                    'difficulty'      => $difficulty,
+                    'category_id'     => $categoryId,
+                    'tags'            => $tagIds,
+                    'options'         => $options,
                 ];
             }
 

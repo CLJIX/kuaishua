@@ -11,3 +11,5 @@ single,"变量<code>$x = ""10"";</code>中$x的数据类型是？",integer,strin
 multiple,以下哪些是有效的CSS选择器？,.class,#id,*,@keyframes,"A,B,C",@keyframes是动画规则不是选择器,2,前端基础,
 single,Git中哪个命令用于查看提交历史？,git log,git status,git diff,git show,A,git log用于查看提交历史记录,1,,Git
 judge,PHP是一种解释型语言。,,,,A,PHP是编译型语言（先编译为字节码再执行）,2,PHP基础,PHP
+fill,PHP中用于获取字符串长度的函数是？,,,,strlen,mb_strlen也可用于获取字符串长度,1,PHP基础,字符串
+fill,MySQL中用于查询所有记录的通配符是？,,,,%,多个字符匹配使用%,1,数据库,SQL
