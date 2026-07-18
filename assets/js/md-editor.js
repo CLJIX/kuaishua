@@ -68,8 +68,8 @@
         ta.selectionStart = start + before.length;
         ta.selectionEnd = start + before.length + sel.length;
         ta.focus();
-        // 触发 input 事件以更新预览
-        ta.dispatchEvent(new Event('input'));
+        // 触发 input 事件以更新预览（使用 bubbles 确保事件可冒泡）
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     function insertAtCursor(ta, text) {
@@ -78,7 +78,7 @@
         ta.value = val.substring(0, start) + text + val.substring(ta.selectionEnd);
         ta.selectionStart = ta.selectionEnd = start + text.length;
         ta.focus();
-        ta.dispatchEvent(new Event('input'));
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     /* ===== 初始化编辑器 ===== */
@@ -96,31 +96,90 @@
             toolbar.innerHTML = buildToolbar();
         }
 
-        // 预览更新函数
-        function updatePreview() {
-            var raw = ta.value;
-            if (raw.trim()) {
-                preview.innerHTML = DOMPurify.sanitize(marked.parse(raw));
-                // 渲染 LaTeX 公式
-                if (typeof renderMathInElement !== 'undefined') {
-                    renderMathInElement(preview, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false}
-                        ],
-                        throwOnError: false
-                    });
+        // 预览更新函数（带错误捕获 + 防抖）
+        var _timer = null;
+        var _composing = false; // IME 组合中标记
+        var _safetyTimer = null; // 防止 _composing 卡死的安全定时器
+
+        function doUpdate() {
+            try {
+                var raw = ta.value;
+                if (raw.trim()) {
+                    var html = marked.parse(raw);
+                    preview.innerHTML = DOMPurify.sanitize(html);
+                    // 渲染 LaTeX 公式
+                    if (typeof renderMathInElement !== 'undefined') {
+                        try {
+                            renderMathInElement(preview, {
+                                delimiters: [
+                                    {left: '$$', right: '$$', display: true},
+                                    {left: '$', right: '$', display: false}
+                                ],
+                                throwOnError: false
+                            });
+                        } catch (katexErr) {
+                            // KaTeX 渲染失败不影响主体内容
+                        }
+                    }
+                } else {
+                    preview.innerHTML = '<span style="color:#adb5bd">预览区域</span>';
                 }
-            } else {
-                preview.innerHTML = '<span style="color:#adb5bd">预览区域</span>';
+            } catch (err) {
+                // 渲染失败时显示原始文本，避免预览区空白
+                preview.innerHTML = '<pre style="white-space:pre-wrap;color:#dc3545;font-size:0.85em">' +
+                    (ta.value || '').replace(/</g, '&lt;') + '</pre>';
             }
         }
 
-        // 初始渲染
-        updatePreview();
+        function scheduleUpdate() {
+            if (_composing) return;
+            clearTimeout(_timer);
+            _timer = setTimeout(doUpdate, 80);
+        }
 
-        // 实时预览
-        ta.addEventListener('input', updatePreview);
+        function forceUpdate() {
+            clearTimeout(_timer);
+            _composing = false; // 强制更新时无条件重置 IME 标记
+            doUpdate();
+        }
+
+        // 安全机制：如果 IME 组合超过 5 秒未结束，强制重置（防止卡死）
+        function resetComposingSafety() {
+            clearTimeout(_safetyTimer);
+            _safetyTimer = setTimeout(function() {
+                if (_composing) {
+                    _composing = false;
+                    forceUpdate();
+                }
+            }, 5000);
+        }
+
+        // 初始渲染
+        doUpdate();
+
+        // ---- 事件监听（覆盖各种输入场景）----
+
+        // 常规输入（打字、删除、粘贴、拖放等）
+        ta.addEventListener('input', scheduleUpdate);
+
+        // IME 中文输入法：组合期间跳过渲染，组合结束后立即更新
+        ta.addEventListener('compositionstart', function () {
+            _composing = true;
+            resetComposingSafety();
+        });
+        ta.addEventListener('compositionend', function () {
+            _composing = false;
+            clearTimeout(_safetyTimer);
+            forceUpdate();
+        });
+
+        // 粘贴兜底（部分浏览器 paste 后 input 事件延迟）
+        ta.addEventListener('paste', function () {
+            setTimeout(forceUpdate, 0);
+        });
+
+        // keyup 兜底（某些浏览器特殊键不触发 input）
+        ta.addEventListener('keyup', scheduleUpdate);
 
         // 同步滚动
         ta.addEventListener('scroll', function () {
@@ -136,7 +195,7 @@
                 var s = ta.selectionStart;
                 ta.value = ta.value.substring(0, s) + '    ' + ta.value.substring(ta.selectionEnd);
                 ta.selectionStart = ta.selectionEnd = s + 4;
-                updatePreview();
+                forceUpdate();
             }
         });
 
@@ -161,8 +220,17 @@
             }
         }
 
-        // 工具栏点击
+        // 工具栏交互：mousedown 阻止 textarea 失焦（保留光标位置）
         if (toolbar) {
+            toolbar.addEventListener('mousedown', function (e) {
+                if (e.target.closest('.md-btn')) {
+                    e.preventDefault(); // 阻止 textarea 失去焦点
+                    // 工具栏操作时强制重置 IME 标记（防止 compositionend 未触发导致卡死）
+                    _composing = false;
+                    clearTimeout(_safetyTimer);
+                }
+            });
+
             toolbar.addEventListener('click', function (e) {
                 var btn = e.target.closest('.md-btn');
                 if (!btn) return;
@@ -184,6 +252,8 @@
                 } else if (def.insert) {
                     insertAtCursor(ta, def.insert);
                 }
+                // 工具栏插入后立即刷新预览
+                forceUpdate();
             });
         }
     };

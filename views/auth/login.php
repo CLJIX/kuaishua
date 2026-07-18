@@ -40,6 +40,18 @@
                                    required>
                         </div>
 
+                        <!-- 记住我 -->
+                        <div class="mb-3 form-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="remember"
+                                   name="remember"
+                                   value="1">
+                            <label class="form-check-label" for="remember">
+                                记住我（3天内免登录）
+                            </label>
+                        </div>
+
                         <!-- 提交按钮 -->
                         <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary btn-lg">

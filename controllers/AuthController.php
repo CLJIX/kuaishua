@@ -45,7 +45,9 @@ class AuthController {
             // 调用模型验证凭据
             $user = $this->userModel->login($username, $password);
             if ($user) {
-                loginUser($user);
+                // 检查是否勾选了「记住我」
+                $remember = (bool) postParam('remember', false);
+                loginUser($user, $remember);
                 setFlash('success', '欢迎回来，' . e($user['username']) . '！');
                 redirect(url('home'));
             } else {

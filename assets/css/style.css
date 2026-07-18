@@ -409,6 +409,75 @@
     text-align: center;
 }
 
+/* ===== 列表页 Markdown 预览（固定高度，不影响布局）===== */
+.md-excerpt-preview {
+    max-height: 4.5em;          /* 约 3 行高度 */
+    overflow: hidden;
+    line-height: 1.5;
+    font-size: 0.9rem;
+    color: #495057;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    pointer-events: none;       /* 列表项整体可点击，内部不拦截 */
+}
+
+/* 内部元素尺寸限制，防止撑高容器 */
+.md-excerpt-preview h1,
+.md-excerpt-preview h2,
+.md-excerpt-preview h3,
+.md-excerpt-preview h4,
+.md-excerpt-preview h5,
+.md-excerpt-preview h6 {
+    font-size: 0.95rem;
+    margin: 0 0 0.2em;
+    font-weight: 600;
+}
+
+.md-excerpt-preview p {
+    margin: 0 0 0.2em;
+}
+
+.md-excerpt-preview img {
+    max-height: 2em;
+    width: auto;
+    vertical-align: middle;
+}
+
+.md-excerpt-preview pre {
+    max-height: 2.5em;
+    overflow: hidden;
+    font-size: 0.8rem;
+    margin: 0;
+    padding: 0.2em 0.5em;
+}
+
+.md-excerpt-preview code {
+    font-size: 0.85em;
+}
+
+.md-excerpt-preview blockquote {
+    border-left: 3px solid #dee2e6;
+    padding-left: 0.6em;
+    margin: 0;
+    color: #6c757d;
+}
+
+.md-excerpt-preview ul,
+.md-excerpt-preview ol {
+    padding-left: 1.2em;
+    margin: 0;
+}
+
+.md-excerpt-preview table {
+    display: none;              /* 列表中不显示表格 */
+}
+
+.md-excerpt-preview .katex-display {
+    margin: 0;
+    overflow: hidden;
+    max-height: 1.5em;
+}
+
 /* ===== 轻量 Markdown 编辑器 ===== */
 .md-editor-wrap {
     border: 1px solid #dee2e6;

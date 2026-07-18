@@ -116,6 +116,24 @@ CREATE TABLE practice_records (
     INDEX idx_user_question (user_id, question_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='答题记录表';
 
+-- -----------------------------------------------------------
+-- 8. 记住我登录令牌表
+-- 存储用户"记住我"功能的认证令牌哈希值
+-- 每次用户勾选"记住我"登录时生成一个随机令牌，其SHA-256哈希存入此表
+-- Cookie 中仅存储原始令牌（不含用户ID），服务端通过哈希查找验证
+-- -----------------------------------------------------------
+CREATE TABLE remember_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL COMMENT '关联的用户ID',
+    token_hash CHAR(64) NOT NULL UNIQUE COMMENT '令牌的SHA-256哈希值（64位十六进制）',
+    expires_at DATETIME NOT NULL COMMENT '令牌过期时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '令牌创建时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_token_hash (token_hash),
+    INDEX idx_user (user_id),
+    INDEX idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='记住我登录令牌表';
+
 -- ============================================================
 -- 初始化数据
 -- ============================================================

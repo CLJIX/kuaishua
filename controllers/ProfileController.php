@@ -89,6 +89,8 @@ class ProfileController {
 
                 // 更新密码
                 if ($this->userModel->updatePassword($user['id'], $newPassword)) {
+                    // 安全措施：密码修改后清除所有「记住我」令牌，强制所有设备重新登录
+                    $this->userModel->deleteAllRememberTokens($user['id']);
                     refreshCsrfToken();
                     setFlash('success', '密码已更新，请使用新密码登录');
                 } else {

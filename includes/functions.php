@@ -5,6 +5,17 @@
  */
 
 /**
+ * 判断当前请求是否为 HTTPS
+ * 用于动态设置 Cookie 的 Secure 标志（HTTP 环境下不设 Secure，否则 Cookie 无法设置）
+ *
+ * @return bool 是否为 HTTPS 请求
+ */
+function isHttps(): bool {
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+}
+
+/**
  * 启动安全 Session
  * 设置安全的 Cookie 参数，防止 Session 劫持
  */
@@ -15,6 +26,7 @@ function startSecureSession(): void {
             'lifetime' => 3600,      // Session 有效期 1 小时
             'path' => '/',           // 全站可用
             'httponly' => true,      // 禁止 JavaScript 访问 Cookie
+            'secure'   => isHttps(), // HTTPS 环境下启用 Secure 标志
             'samesite' => 'Lax'     // 防止 CSRF 的 SameSite 策略
         ]);
         session_start();

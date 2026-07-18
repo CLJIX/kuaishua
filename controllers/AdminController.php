@@ -781,6 +781,8 @@ class AdminController {
                         setFlash('warning', '密码至少6位');
                     } else {
                         if ($this->userModel->updatePassword($id, $newPassword)) {
+                            // 安全措施：密码修改后清除该用户所有「记住我」令牌
+                            $this->userModel->deleteAllRememberTokens($id);
                             setFlash('success', '密码已更新');
                         } else {
                             setFlash('danger', '更新失败');

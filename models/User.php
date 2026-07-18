@@ -240,6 +240,114 @@ class UserModel {
         return ['success' => $success, 'failed' => $failed, 'errors' => $errors];
     }
 
+    // =====================================================
+    // 记住我（Remember Me）令牌管理
+    // =====================================================
+
+    /**
+     * 创建"记住我"令牌
+     * 生成密码学安全的随机令牌，将其SHA-256哈希存入数据库，返回原始令牌用于设置Cookie
+     *
+     * @param int $userId 用户ID
+     * @return string 原始令牌（用于写入Cookie，服务端只存哈希）
+     */
+    public function createRememberToken(int $userId): string {
+        // 生成32字节（64十六进制字符）的随机令牌
+        $token = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
+        $expiresAt = date('Y-m-d H:i:s', time() + 3 * 24 * 60 * 60); // 3天后过期
+
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (:uid, :hash, :exp)'
+            );
+            $stmt->execute([
+                ':uid'  => $userId,
+                ':hash' => $tokenHash,
+                ':exp'  => $expiresAt,
+            ]);
+            return $token;
+        } catch (PDOException $e) {
+            error_log('创建记住我令牌失败: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    /**
+     * 通过令牌查找用户（用于自动恢复登录状态）
+     * 对传入的原始令牌进行SHA-256哈希后查库，验证未过期后返回用户信息
+     *
+     * @param string $token Cookie中的原始令牌
+     * @return array|null 用户信息（不含密码哈希），令牌无效或已过期返回null
+     */
+    public function findByRememberToken(string $token): ?array {
+        if (strlen($token) !== 64) {
+            return null;
+        }
+
+        $tokenHash = hash('sha256', $token);
+
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT u.id, u.username, u.email, u.role
+                 FROM remember_tokens rt
+                 JOIN users u ON rt.user_id = u.id
+                 WHERE rt.token_hash = :hash AND rt.expires_at > NOW()
+                 LIMIT 1'
+            );
+            $stmt->execute([':hash' => $tokenHash]);
+            $user = $stmt->fetch();
+            return $user ?: null;
+        } catch (PDOException $e) {
+            error_log('查找记住我令牌失败: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 删除指定的记住我令牌（登出时调用）
+     *
+     * @param string $token 原始令牌
+     */
+    public function deleteRememberToken(string $token): void {
+        if (strlen($token) !== 64) {
+            return;
+        }
+        $tokenHash = hash('sha256', $token);
+        try {
+            $stmt = $this->db->prepare('DELETE FROM remember_tokens WHERE token_hash = :hash');
+            $stmt->execute([':hash' => $tokenHash]);
+        } catch (PDOException $e) {
+            error_log('删除记住我令牌失败: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 删除指定用户的所有记住我令牌（密码修改后调用，强制所有设备重新登录）
+     *
+     * @param int $userId 用户ID
+     */
+    public function deleteAllRememberTokens(int $userId): void {
+        try {
+            $stmt = $this->db->prepare('DELETE FROM remember_tokens WHERE user_id = :uid');
+            $stmt->execute([':uid' => $userId]);
+        } catch (PDOException $e) {
+            error_log('删除用户所有记住我令牌失败: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 清理所有已过期的记住我令牌（可选的定期维护）
+     */
+    public function cleanExpiredRememberTokens(): int {
+        try {
+            return $this->db->exec('DELETE FROM remember_tokens WHERE expires_at < NOW()');
+        } catch (PDOException $e) {
+            error_log('清理过期令牌失败: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
     /**
      * 更新用户邮箱
      */

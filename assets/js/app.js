@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== 管理后台动态选项 =====
     initDynamicOptions();
+
+    // ===== 列表页 Markdown 预览渲染 =====
+    initListPreview();
 });
 
 /**
@@ -189,5 +192,36 @@ function initDynamicOptions() {
         btn.addEventListener('click', function() {
             this.closest('.option-row').remove();
         });
+    });
+}
+
+/**
+ * 列表页 Markdown 预览渲染
+ * 查找所有 .md-excerpt-preview[data-raw] 元素，使用 marked.js + DOMPurify 渲染
+ * 同时渲染 KaTeX 公式（如果可用）
+ */
+function initListPreview() {
+    var previews = document.querySelectorAll('.md-excerpt-preview[data-raw]');
+    if (!previews.length) return;
+
+    var katexOpts = {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false
+    };
+
+    previews.forEach(function(el) {
+        var raw = el.getAttribute('data-raw');
+        if (!raw) return;
+        try {
+            el.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(el, katexOpts);
+            }
+        } catch (err) {
+            // 渲染失败时保留纯文本
+        }
     });
 }

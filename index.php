@@ -13,6 +13,9 @@ require_once __DIR__ . '/includes/auth.php';
 // 启动安全 Session
 startSecureSession();
 
+// 尝试从「记住我」Cookie 恢复登录状态（Session 过期但 Cookie 有效时自动恢复）
+tryRestoreFromCookie();
+
 // 获取路由参数
 $page   = $_GET['page']   ?? 'home';
 $action = $_GET['action'] ?? 'index';

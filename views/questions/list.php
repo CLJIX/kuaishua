@@ -101,8 +101,8 @@
                                 #<?= (int)$item['id'] ?>
                             </span>
                             <div>
-                                <!-- 题面预览（截取前100字，去除 Markdown/HTML 语法） -->
-                                <h6 class="mb-1"><?= e(mdExcerpt($item['content'], 100)) ?></h6>
+                                <!-- 题面预览（Markdown 渲染，固定高度） -->
+                                <div class="md-excerpt-preview mb-1" data-raw="<?= mdAttr($item['content']) ?>"></div>
                                 <div class="d-flex flex-wrap gap-1 mt-1">
                                     <!-- 类型标签 -->
                                     <?php if ($item['question_type'] === 'single'): ?>

@@ -109,8 +109,7 @@ $_questionModel = new QuestionModel();
                                     <tr>
                                         <td><?= (int)$item['id'] ?></td>
                                         <td>
-                                            <?= e(mb_substr(strip_tags($item['content']), 0, 60)) ?>
-                                            <?= mb_strlen(strip_tags($item['content'])) > 60 ? '...' : '' ?>
+                                            <div class="md-excerpt-preview" style="max-width:400px" data-raw="<?= mdAttr($item['content']) ?>"></div>
                                         </td>
                                         <td>
                                             <span class="badge bg-secondary">
