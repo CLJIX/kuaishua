@@ -27,7 +27,7 @@ class AuthController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('login'));
                 return;
             }
@@ -74,10 +74,17 @@ class AuthController {
             return;
         }
 
+        // 检查是否允许新用户注册
+        if (siteSetting('allow_register', '1') !== '1') {
+            setFlash('warning', '当前已关闭新用户注册');
+            redirect(url('home'));
+            return;
+        }
+
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('register'));
                 return;
             }
@@ -140,7 +147,7 @@ class AuthController {
                 $user = $this->userModel->findById($userId);
                 if ($user) {
                     loginUser($user);
-                    setFlash('success', '注册成功，欢迎加入小题快刷！');
+                    setFlash('success', '注册成功，欢迎加入' . e(siteName()) . '！');
                     redirect(url('home'));
                     return;
                 }

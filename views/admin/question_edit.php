@@ -238,6 +238,10 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
 <!-- 轻量 Markdown 编辑器（仅 6KB，复用已加载的 marked.js + DOMPurify） -->
 <script src="assets/js/md-editor.js"></script>
 
+<!-- OSS 上传组件 + 媒体库弹窗 -->
+<script src="assets/js/oss-upload.js"></script>
+<?php include __DIR__ . '/_media_modal.php'; ?>
+
 <!-- 选项动态管理 & 编辑器初始化脚本 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -378,5 +382,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // ---- 轻量 Markdown 编辑器初始化 ----
     mdEditorInit('editor-content');
     mdEditorInit('editor-explanation');
+
+    // ---- 初始化 OSS 上传组件（粘贴上传 + 媒体库弹窗） ----
+    if (typeof initOssUpload === 'function') {
+        initOssUpload({ questionId: <?= $id ?> });
+    }
 });
 </script>

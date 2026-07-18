@@ -6,6 +6,7 @@
  */
 
 // 加载依赖文件
+require_once __DIR__ . '/includes/EnvLoader.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -29,7 +30,7 @@ $routes = [
     'profile'   => ['controllers/ProfileController.php', 'ProfileController', ['index']],
     'questions' => ['controllers/QuestionController.php', 'QuestionController', ['index', 'list', 'detail']],
     'practice'  => ['controllers/PracticeController.php', 'PracticeController', ['index', 'submit', 'result']],
-    'admin'     => ['controllers/AdminController.php',    'AdminController',    ['index', 'questions', 'question_edit', 'question_delete', 'import', 'categories', 'tags', 'users']],
+    'admin'     => ['controllers/AdminController.php',    'AdminController',    ['index', 'questions', 'question_edit', 'question_delete', 'import', 'categories', 'tags', 'users', 'settings', 'media', 'oss_settings', 'upload_image']],
 ];
 
 // 分发路由

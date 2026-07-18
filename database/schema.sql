@@ -10,7 +10,20 @@ CREATE DATABASE IF NOT EXISTS xtks_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8
 USE xtks_db;
 
 -- -----------------------------------------------------------
--- 1. 用户表
+-- 1. 站点配置表
+-- 存储站点名称、Logo、是否允许注册等全局配置项
+-- -----------------------------------------------------------
+CREATE TABLE site_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(50) NOT NULL UNIQUE COMMENT '配置项键名',
+    setting_value TEXT COMMENT '配置项值',
+    description VARCHAR(255) DEFAULT NULL COMMENT '配置说明',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+    INDEX idx_setting_key (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站点配置表';
+
+-- -----------------------------------------------------------
+-- 2. 用户表
 -- 存储用户账户信息，role 字段区分普通用户和管理员
 -- -----------------------------------------------------------
 CREATE TABLE users (
@@ -25,7 +38,7 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- -----------------------------------------------------------
--- 2. 分类表（支持层级结构）
+-- 3. 分类表（支持层级结构）
 -- parent_id 指向自身表实现树形分类，支持无限层级
 -- -----------------------------------------------------------
 CREATE TABLE categories (
@@ -40,7 +53,7 @@ CREATE TABLE categories (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分类表（支持层级）';
 
 -- -----------------------------------------------------------
--- 3. 标签表
+-- 4. 标签表
 -- 用于给题目标记知识点标签，支持多对多关联
 -- -----------------------------------------------------------
 CREATE TABLE tags (
@@ -50,7 +63,7 @@ CREATE TABLE tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
 
 -- -----------------------------------------------------------
--- 4. 题目主表
+-- 5. 题目主表
 -- 存储题目核心信息：题型、题面、答案解析、难度、所属分类
 -- -----------------------------------------------------------
 CREATE TABLE questions (
@@ -70,7 +83,7 @@ CREATE TABLE questions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目主表';
 
 -- -----------------------------------------------------------
--- 5. 题目选项表
+-- 6. 题目选项表
 -- 存储每道题的选项内容，is_correct 标记正确答案
 -- 一道题可以有多个选项（A/B/C/D...），多选题可有多个正确答案
 -- -----------------------------------------------------------
@@ -85,7 +98,7 @@ CREATE TABLE question_options (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目选项表';
 
 -- -----------------------------------------------------------
--- 6. 题目-标签关联表（多对多）
+-- 7. 题目-标签关联表（多对多）
 -- 一道题可以关联多个标签，一个标签也可以关联多道题
 -- -----------------------------------------------------------
 CREATE TABLE question_tags (
@@ -98,7 +111,7 @@ CREATE TABLE question_tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目-标签关联表';
 
 -- -----------------------------------------------------------
--- 7. 答题记录表
+-- 8. 答题记录表
 -- 记录用户每次答题的结果，用于统计和分析学习进度
 -- -----------------------------------------------------------
 CREATE TABLE practice_records (
@@ -117,7 +130,7 @@ CREATE TABLE practice_records (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='答题记录表';
 
 -- -----------------------------------------------------------
--- 8. 记住我登录令牌表
+-- 9. 记住我登录令牌表
 -- 存储用户"记住我"功能的认证令牌哈希值
 -- 每次用户勾选"记住我"登录时生成一个随机令牌，其SHA-256哈希存入此表
 -- Cookie 中仅存储原始令牌（不含用户ID），服务端通过哈希查找验证
@@ -137,6 +150,12 @@ CREATE TABLE remember_tokens (
 -- ============================================================
 -- 初始化数据
 -- ============================================================
+
+-- 默认站点配置
+INSERT INTO site_settings (setting_key, setting_value, description) VALUES
+('site_name', '小题快刷', '站点名称'),
+('site_logo', '', '站点 Logo URL（为空则不显示）'),
+('allow_register', '1', '是否允许新用户注册（1=允许，0=禁止）');
 
 -- 默认管理员账户（密码: admin123）
 -- 密码哈希由 password_hash('admin123', PASSWORD_DEFAULT) 生成

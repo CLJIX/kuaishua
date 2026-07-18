@@ -98,7 +98,7 @@ class AdminController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'question_edit', 'id' => $id]));
                 return;
             }
@@ -254,7 +254,7 @@ class AdminController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'import']));
                 return;
             }
@@ -507,7 +507,7 @@ class AdminController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'categories']));
                 return;
             }
@@ -603,7 +603,7 @@ class AdminController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'tags']));
                 return;
             }
@@ -693,7 +693,7 @@ class AdminController {
         // 处理二次密码验证提交（在检查 admin_verified 之前处理，否则永远无法通过验证）
         if (isPost() && $subAction === 'verify') {
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'users']));
                 return;
             }
@@ -723,7 +723,7 @@ class AdminController {
         if (isPost()) {
             // CSRF 安全验证
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('admin', ['action' => 'users']));
                 return;
             }
@@ -819,5 +819,422 @@ class AdminController {
         require_once __DIR__ . '/../views/layouts/header.php';
         require_once __DIR__ . '/../views/admin/users.php';
         require_once __DIR__ . '/../views/layouts/footer.php';
+    }
+
+    // =====================================================
+    // 配置管理
+    // =====================================================
+
+    /**
+     * 站点配置管理
+     * 支持修改站点名称、Logo、是否允许注册等全局配置
+     */
+    public function settings(): void {
+        $subAction = getParam('sub_action', 'list');
+
+        if (isPost()) {
+            // CSRF 安全验证
+            if (!verifyCsrfToken()) {
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
+                redirect(url('admin', ['action' => 'settings']));
+                return;
+            }
+
+            if ($subAction === 'update') {
+                $siteName      = trim(postParam('site_name', ''));
+                $siteLogo      = trim(postParam('site_logo', ''));
+                $allowRegister = (bool) postParam('allow_register', false) ? '1' : '0';
+
+                if (empty($siteName)) {
+                    setFlash('warning', '站点名称不能为空');
+                    redirect(url('admin', ['action' => 'settings']));
+                    return;
+                }
+
+                // 处理站点 Logo 上传
+                if (!empty($_FILES['site_logo_file']['tmp_name'])) {
+                    require_once __DIR__ . '/../includes/functions.php'; // 确保 uploadImage 可用
+                    $uploadResult = uploadImage($_FILES['site_logo_file'], 'logos');
+                    if ($uploadResult['success']) {
+                        // 上传成功：删除旧的上传文件（如果存在）
+                        $oldLogo = trim($siteLogo);
+                        if ($oldLogo !== '' && str_starts_with($oldLogo, 'uploads/logos/')) {
+                            deleteUploadedImage($oldLogo);
+                        }
+                        $siteLogo = $uploadResult['path'];
+                    } else {
+                        setFlash('danger', 'Logo 上传失败：' . $uploadResult['error']);
+                        redirect(url('admin', ['action' => 'settings']));
+                        return;
+                    }
+                }
+
+                require_once __DIR__ . '/../models/Setting.php';
+                $settingModel = new SettingModel();
+                try {
+                    $settingModel->saveBatch([
+                        'site_name'      => $siteName,
+                        'site_logo'      => $siteLogo,
+                        'allow_register' => $allowRegister,
+                    ]);
+                    setFlash('success', '配置已更新');
+                } catch (PDOException $e) {
+                    setFlash('danger', '配置更新失败：' . e($e->getMessage()));
+                }
+            } else {
+                setFlash('warning', '无效的操作');
+            }
+
+            redirect(url('admin', ['action' => 'settings']));
+            return;
+        }
+
+        // GET：加载当前配置
+        require_once __DIR__ . '/../models/Setting.php';
+        $settingModel = new SettingModel();
+        $settings = $settingModel->getAll();
+
+        // 渲染配置管理页面
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/admin/settings.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
+    }
+
+    // =====================================================
+    // OSS 配置管理
+    // =====================================================
+
+    /**
+     * OSS 配置管理
+     * GET  - 渲染配置表单（AK/SK 显示掩码）
+     * POST sub_action=update  - 保存配置
+     * POST sub_action=test    - 测试连接（AJAX JSON）
+     */
+    public function oss_settings(): void {
+        require_once __DIR__ . '/../models/Setting.php';
+        require_once __DIR__ . '/../includes/OssService.php';
+        $settingModel = new SettingModel();
+
+        if (isPost()) {
+            if (!verifyCsrfToken()) {
+                // AJAX 请求返回 JSON，非 AJAX 返回 Flash
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => '安全验证失败']);
+                    return;
+                }
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
+                redirect(url('admin', ['action' => 'oss_settings']));
+                return;
+            }
+
+            $subAction = getParam('sub_action', postParam('sub_action', 'update'));
+
+            if ($subAction === 'test') {
+                // 测试连接
+                header('Content-Type: application/json');
+                $config = getOssConfig();
+                if (empty($config)) {
+                    echo json_encode(['success' => false, 'message' => 'OSS 尚未配置，请先填写并保存配置后再测试']);
+                    return;
+                }
+                $oss = new OssService($config);
+                $result = $oss->testConnection();
+                echo json_encode($result);
+                return;
+            }
+
+            // 保存配置
+            if ($subAction === 'update') {
+                $akInput = trim(postParam('oss_access_key_id', ''));
+                $skInput = trim(postParam('oss_access_key_secret', ''));
+                $bucket   = trim(postParam('oss_bucket', ''));
+                $endpoint = trim(postParam('oss_endpoint', ''));
+                $region   = trim(postParam('oss_region', ''));
+                $cdnDomain = trim(postParam('oss_cdn_domain', ''));
+
+                // AK/SK 处理：如果用户输入了掩码值（如 ********）或空值，则保留原值
+                $currentAk = $settingModel->get('oss_access_key_id');
+                $currentSk = $settingModel->get('oss_access_key_secret');
+
+                $saveData = [
+                    'oss_bucket'     => $bucket,
+                    'oss_endpoint'   => $endpoint,
+                    'oss_region'     => $region,
+                    'oss_cdn_domain' => $cdnDomain,
+                ];
+
+                // 新输入的 AK（非掩码且非空）才加密存储
+                if ($akInput !== '' && !str_contains($akInput, '****')) {
+                    $encrypted = ossEncrypt($akInput);
+                    if ($encrypted !== '') {
+                        $saveData['oss_access_key_id'] = $encrypted;
+                    } else {
+                        setFlash('danger', 'AK 加密失败，请检查服务器 openssl 扩展');
+                        redirect(url('admin', ['action' => 'oss_settings']));
+                        return;
+                    }
+                }
+                if ($skInput !== '' && !str_contains($skInput, '****')) {
+                    $encrypted = ossEncrypt($skInput);
+                    if ($encrypted !== '') {
+                        $saveData['oss_access_key_secret'] = $encrypted;
+                    } else {
+                        setFlash('danger', 'SK 加密失败，请检查服务器 openssl 扩展');
+                        redirect(url('admin', ['action' => 'oss_settings']));
+                        return;
+                    }
+                }
+
+                try {
+                    $settingModel->saveBatch($saveData);
+                    setFlash('success', 'OSS 配置已保存');
+                } catch (PDOException $e) {
+                    setFlash('danger', '保存失败：' . e($e->getMessage()));
+                }
+            }
+
+            redirect(url('admin', ['action' => 'oss_settings']));
+            return;
+        }
+
+        // GET：加载当前配置（AK/SK 显示掩码）
+        $settings = $settingModel->getAll();
+
+        // 对 AK/SK 做掩码处理
+        $rawAk = $settings['oss_access_key_id'] ?? '';
+        $rawSk = $settings['oss_access_key_secret'] ?? '';
+        $decryptedAk = ossDecrypt($rawAk);
+        $decryptedSk = ossDecrypt($rawSk);
+        $settings['oss_ak_display'] = $decryptedAk !== '' ? substr($decryptedAk, 0, 4) . '********' : '';
+        $settings['oss_sk_display'] = $decryptedSk !== '' ? substr($decryptedSk, 0, 4) . '********' : '';
+        $settings['oss_configured'] = ($decryptedAk !== '' && $decryptedSk !== '');
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/admin/oss_settings.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
+    }
+
+    // =====================================================
+    // 媒体库管理
+    // =====================================================
+
+    /**
+     * 媒体库管理
+     * GET  - 渲染媒体列表（支持搜索、筛选、分页）
+     * POST sub_action=delete - 删除媒体（同时删 OSS 文件）
+     */
+    public function media(): void {
+        require_once __DIR__ . '/../models/Media.php';
+        require_once __DIR__ . '/../includes/OssService.php';
+        $mediaModel = new MediaModel();
+
+        if (isPost()) {
+            if (!verifyCsrfToken()) {
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
+                redirect(url('admin', ['action' => 'media']));
+                return;
+            }
+
+            $subAction = postParam('sub_action', '');
+            if ($subAction === 'delete') {
+                $id = (int) postParam('id', 0);
+                if ($id <= 0) {
+                    setFlash('warning', '参数无效');
+                    redirect(url('admin', ['action' => 'media']));
+                    return;
+                }
+                $record = $mediaModel->findById($id);
+                if (!$record) {
+                    setFlash('warning', '媒体记录不存在');
+                    redirect(url('admin', ['action' => 'media']));
+                    return;
+                }
+                // 删除 OSS 文件
+                $config = getOssConfig();
+                if (!empty($config)) {
+                    $oss = new OssService($config);
+                    $oss->deleteObject($record['oss_path']);
+                }
+                // 删除数据库记录
+                if ($mediaModel->delete($id)) {
+                    setFlash('success', '媒体已删除');
+                } else {
+                    setFlash('danger', '删除失败');
+                }
+            }
+
+            redirect(url('admin', ['action' => 'media']));
+            return;
+        }
+
+        // GET：媒体列表
+        $ossConfigured = !empty(getOssConfig());
+        $filters = [
+            'keyword'   => getParam('keyword'),
+            'biz_type'  => getParam('biz_type'),
+            'date_from' => getParam('date_from'),
+            'date_to'   => getParam('date_to'),
+        ];
+        $page   = max(1, (int) getParam('page', 1));
+        $result = $mediaModel->getList($filters, $page, 24);
+        $stats  = $mediaModel->getStats();
+
+        // AJAX 请求返回 JSON（供媒体库弹窗使用）
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            // 给每个 item 添加缩略图 URL
+            foreach ($result['items'] as &$item) {
+                $item['thumbnail_url'] = ossImageUrl($item['oss_path'], 'thumbnail');
+                $item['preview_url']   = ossImageUrl($item['oss_path'], 'preview');
+            }
+            unset($item);
+            // 告知前端 OSS 是否已配置，弹窗可据此显示引导提示
+            $result['oss_configured'] = $ossConfigured;
+            echo json_encode($result);
+            return;
+        }
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/admin/media.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
+    }
+
+    // =====================================================
+    // 图片上传（AJAX 端点）
+    // =====================================================
+
+    /**
+     * 图片上传 AJAX 端点
+     * 接收文件 -> 校验 -> 上传 OSS -> 记录 media 表 -> 返回 JSON
+     */
+    public function upload_image(): void {
+        header('Content-Type: application/json');
+
+        if (!isPost()) {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => '仅支持 POST 请求']);
+            return;
+        }
+
+        if (!verifyCsrfToken()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => '安全验证失败']);
+            return;
+        }
+
+        // 检查 OSS 配置
+        $config = getOssConfig();
+        if (empty($config)) {
+            echo json_encode(['success' => false, 'error' => 'OSS 未配置，请先在 OSS 配置页面完成配置']);
+            return;
+        }
+
+        // 接收文件
+        $file = $_FILES['file'] ?? null;
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            $errorMessages = [
+                UPLOAD_ERR_INI_SIZE   => '文件大小超过服务器限制',
+                UPLOAD_ERR_FORM_SIZE  => '文件大小超过表单限制',
+                UPLOAD_ERR_PARTIAL    => '文件只有部分被上传',
+                UPLOAD_ERR_NO_FILE    => '没有文件被上传',
+                UPLOAD_ERR_NO_TMP_DIR => '找不到临时文件夹',
+                UPLOAD_ERR_CANT_WRITE => '文件写入失败',
+            ];
+            $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+            $errMsg  = $errorMessages[$errCode] ?? '上传失败，错误码：' . $errCode;
+            echo json_encode(['success' => false, 'error' => $errMsg]);
+            return;
+        }
+
+        // 文件校验
+        $allowedMime = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        $allowedExt  = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+        $maxSize     = 10 * 1024 * 1024; // 10MB
+
+        if ($file['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'error' => '文件大小超过限制（最大 10MB）']);
+            return;
+        }
+
+        $originalName = $file['name'] ?? '';
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExt, true)) {
+            echo json_encode(['success' => false, 'error' => '不支持的文件类型，仅支持：' . implode(', ', $allowedExt)]);
+            return;
+        }
+
+        // MIME 校验
+        $detectedMime = 'unknown';
+        if (extension_loaded('fileinfo')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo) {
+                $detectedMime = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+            }
+        }
+        if ($detectedMime === 'unknown' && $ext === 'svg') {
+            $svgContent = file_get_contents($file['tmp_name']);
+            if (is_string($svgContent) && (stripos($svgContent, '<svg') !== false || stripos($svgContent, '<?xml') === 0)) {
+                $detectedMime = 'image/svg+xml';
+            }
+        }
+        if ($detectedMime === 'unknown') {
+            $imageInfo = @getimagesize($file['tmp_name']);
+            if ($imageInfo !== false) {
+                $detectedMime = image_type_to_mime_type($imageInfo[2]);
+            }
+        }
+        if (!in_array($detectedMime, $allowedMime, true)) {
+            echo json_encode(['success' => false, 'error' => '文件类型校验失败，检测到：' . $detectedMime]);
+            return;
+        }
+
+        // 生成 OSS 对象路径
+        $objectKey = 'media/' . date('Y') . '/' . date('m') . '/' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $content = file_get_contents($file['tmp_name']);
+
+        // 上传到 OSS
+        require_once __DIR__ . '/../includes/OssService.php';
+        $oss = new OssService($config);
+        $uploadResult = $oss->putObject($objectKey, $content, $detectedMime);
+
+        if (!$uploadResult['success']) {
+            $payload = ['success' => false, 'error' => '上传 OSS 失败：' . $uploadResult['error']];
+            if (!empty($uploadResult['debug'])) {
+                $payload['debug'] = $uploadResult['debug'];
+            }
+            echo json_encode($payload);
+            return;
+        }
+
+        // 记录到 media 表
+        require_once __DIR__ . '/../models/Media.php';
+        $mediaModel = new MediaModel();
+        try {
+            $mediaId = $mediaModel->create([
+                'file_name'   => $originalName,
+                'file_size'   => $file['size'],
+                'mime_type'   => $detectedMime,
+                'oss_path'    => $objectKey,
+                'cdn_url'     => $uploadResult['url'],
+                'uploader_id' => currentUser()['id'] ?? null,
+                'biz_type'    => postParam('biz_type', 'general'),
+                'question_id' => postParam('question_id') ? (int) postParam('question_id') : null,
+            ]);
+        } catch (Exception $e) {
+            // 数据库写入失败，删除已上传的 OSS 文件
+            $oss->deleteObject($objectKey);
+            echo json_encode(['success' => false, 'error' => '保存记录失败：' . $e->getMessage()]);
+            return;
+        }
+
+        echo json_encode([
+            'success'   => true,
+            'url'       => $uploadResult['url'],
+            'media_id'  => $mediaId,
+            'file_name' => $originalName,
+            'file_size' => $file['size'],
+        ]);
     }
 }

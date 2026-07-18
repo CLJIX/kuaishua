@@ -25,7 +25,7 @@ class ProfileController {
 
         if (isPost()) {
             if (!verifyCsrfToken()) {
-                setFlash('danger', '安全验证失败，请重试');
+                setFlash('danger', '安全验证失败，请刷新页面后重试');
                 redirect(url('profile'));
                 return;
             }

@@ -21,7 +21,7 @@
         { icon: 'bi-check-square',       tip: '任务列表', prefix: '- [ ] ' },
         { sep: true },
         { icon: 'bi-link-45deg',         tip: '链接',     insert: '[链接文字](https://)' },
-        { icon: 'bi-image',              tip: '图片',     insert: '![描述](https://)' },
+        { icon: 'bi-image',              tip: '图片',     action: 'mediaLibrary' },
         { icon: 'bi-code',               tip: '行内代码', wrap: ['`', '`'] },
         { icon: 'bi-code-square',        tip: '代码块',   insert: '```\n\n```' },
         { icon: 'bi-table',              tip: '表格',     insert: '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |' },
@@ -41,8 +41,8 @@
         BUTTONS.forEach(function (btn, i) {
             if (btn.sep) {
                 html += '<span class="md-sep"></span>';
-            } else if (btn.action === 'toggle') {
-                html += '<button type="button" class="md-btn" data-action="toggle" title="' + btn.tip + '"><i class="bi ' + btn.icon + '"></i></button>';
+            } else if (btn.action) {
+                html += '<button type="button" class="md-btn" data-action="' + btn.action + '" title="' + btn.tip + '"><i class="bi ' + btn.icon + '"></i></button>';
             } else {
                 html += '<button type="button" class="md-btn" data-idx="' + i + '" title="' + btn.tip + '"><i class="bi ' + btn.icon + '"></i></button>';
             }
@@ -216,6 +216,20 @@
                     icon.className = 'bi bi-arrows-fullscreen';
                     btn.title = '全屏';
                     document.body.style.overflow = '';
+                }
+            } else if (action === 'mediaLibrary') {
+                // 打开媒体库弹窗选择图片
+                if (typeof MediaLibraryModal !== 'undefined') {
+                    MediaLibraryModal.open(function (items) {
+                        items.forEach(function (item) {
+                            insertAtCursor(ta, '![' + (item.file_name || 'image') + '](' + item.url + ')\n');
+                        });
+                        forceUpdate();
+                    });
+                } else {
+                    // 降级：媒体库未加载时插入占位符
+                    insertAtCursor(ta, '![描述](https://)');
+                    forceUpdate();
                 }
             }
         }

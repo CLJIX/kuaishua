@@ -5,7 +5,7 @@
         <div class="row align-items-center">
             <div class="col-md-8">
                 <h2 class="mb-2">
-                    <i class="bi bi-lightning-charge-fill"></i> 欢迎来到小题快刷
+                    <i class="bi bi-lightning-charge-fill"></i> 欢迎来到<?= e(siteName()) ?>
                 </h2>
                 <p class="mb-0 fs-5">
                     平台共有 <strong><?= (int)$totalQuestions ?></strong> 道精选题目，涵盖多个知识领域，助你高效备战！

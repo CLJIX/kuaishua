@@ -49,5 +49,20 @@ $currentAction = getParam('action', '');
            href="<?= url('admin', ['action' => 'users']) ?>">
             <i class="bi bi-people"></i> 用户管理
         </a>
+        <!-- 媒体库 -->
+        <a class="nav-link <?= $currentAction === 'media' ? 'active fw-bold' : '' ?>"
+           href="<?= url('admin', ['action' => 'media']) ?>">
+            <i class="bi bi-images"></i> 媒体库
+        </a>
+        <!-- 配置管理 -->
+        <a class="nav-link <?= $currentAction === 'settings' ? 'active fw-bold' : '' ?>"
+           href="<?= url('admin', ['action' => 'settings']) ?>">
+            <i class="bi bi-gear"></i> 配置管理
+        </a>
+        <!-- OSS 配置 -->
+        <a class="nav-link <?= $currentAction === 'oss_settings' ? 'active fw-bold' : '' ?>"
+           href="<?= url('admin', ['action' => 'oss_settings']) ?>">
+            <i class="bi bi-cloud"></i> OSS 配置
+        </a>
     </nav>
 </div>

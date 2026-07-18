@@ -6,7 +6,7 @@
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
                         <i class="bi bi-lightning-charge-fill text-primary" style="font-size: 2.5rem;"></i>
-                        <h4 class="mt-2">注册小题快刷</h4>
+                        <h4 class="mt-2">注册<?= e(siteName()) ?></h4>
                         <p class="text-muted">创建账号，开始高效刷题</p>
                     </div>
 

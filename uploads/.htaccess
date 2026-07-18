@@ -1,0 +1,10 @@
+# 禁止在上传目录中执行任何脚本，防止上传 Webshell
+<FilesMatch "\.(?i:php|php3|php4|php5|phtml|pl|py|jsp|asp|aspx|cgi|sh|bash|exe|dll|js)$">
+    Require all denied
+</FilesMatch>
+
+# 关闭目录浏览
+Options -Indexes
+
+# 禁止解析 PHP、CGI
+php_flag engine off

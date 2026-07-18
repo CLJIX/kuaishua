@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小题快刷 - 在线刷题平台</title>
+    <title><?= e(siteName()) ?> - 在线刷题平台</title>
+    <!-- 站点图标（标签页 Logo） -->
+    <?php $_favicon = siteSetting('site_logo'); ?>
+    <?php if ($_favicon): ?>
+    <link rel="icon" type="image/png" href="<?= e($_favicon) ?>">
+    <?php else: ?>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+    <?php endif; ?>
     <!-- Bootstrap 5 CSS（本地托管） -->
     <link href="assets/css/vendor/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons（本地托管） -->
@@ -22,7 +29,13 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
         <a class="navbar-brand" href="<?= url('home') ?>">
-            <i class="bi bi-lightning-charge-fill"></i> 小题快刷
+            <?php $siteLogo = siteSetting('site_logo'); ?>
+            <?php if ($siteLogo): ?>
+                <img src="<?= e($siteLogo) ?>" alt="<?= e(siteName()) ?>" height="30" class="d-inline-block align-text-top me-2">
+            <?php else: ?>
+                <i class="bi bi-lightning-charge-fill"></i>
+            <?php endif; ?>
+            <?= e(siteName()) ?>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -43,7 +56,9 @@
                     <li class="nav-item"><a class="nav-link" href="<?= url('logout') ?>">登出</a></li>
                 <?php else: ?>
                     <li class="nav-item"><a class="nav-link" href="<?= url('login') ?>">登录</a></li>
-                    <li class="nav-item"><a class="nav-link btn btn-outline-light btn-sm ms-2" href="<?= url('register') ?>">注册</a></li>
+                    <?php if (siteSetting('allow_register', '1') === '1'): ?>
+                        <li class="nav-item"><a class="nav-link btn btn-outline-light btn-sm ms-2" href="<?= url('register') ?>">注册</a></li>
+                    <?php endif; ?>
                 <?php endif; ?>
             </ul>
         </div>
