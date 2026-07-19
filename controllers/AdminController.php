@@ -65,7 +65,7 @@ class AdminController {
         ];
 
         $page   = max(1, (int) getParam('page', 1));
-        $result = $this->questionModel->getList($filters, $page, 20);
+        $result = $this->questionModel->getList($filters, $page, 50);
 
         $categories = $this->categoryModel->getAll();
 
@@ -188,11 +188,14 @@ class AdminController {
             try {
                 if ($isEdit) {
                     $this->questionModel->update($id, $data, $options);
+                    $savedId = $id;
                     setFlash('success', '题目已更新');
                 } else {
-                    $newId = $this->questionModel->create($data, $options);
-                    setFlash('success', '题目已创建（ID: ' . $newId . '）');
+                    $savedId = $this->questionModel->create($data, $options);
+                    setFlash('success', '题目已创建（ID: ' . $savedId . '）');
                 }
+                // 将题目内容中的图片与媒体库记录建立关联
+                $this->_associateMediaWithQuestion($savedId, $data['content'], $data['explanation']);
                 redirect(url('admin', ['action' => 'questions']));
             } catch (Exception $e) {
                 setFlash('danger', '保存失败：' . e($e->getMessage()));
@@ -853,19 +856,75 @@ class AdminController {
 
                 // 处理站点 Logo 上传
                 if (!empty($_FILES['site_logo_file']['tmp_name'])) {
-                    require_once __DIR__ . '/../includes/functions.php'; // 确保 uploadImage 可用
-                    $uploadResult = uploadImage($_FILES['site_logo_file'], 'logos');
-                    if ($uploadResult['success']) {
-                        // 上传成功：删除旧的上传文件（如果存在）
-                        $oldLogo = trim($siteLogo);
-                        if ($oldLogo !== '' && str_starts_with($oldLogo, 'uploads/logos/')) {
-                            deleteUploadedImage($oldLogo);
-                        }
-                        $siteLogo = $uploadResult['path'];
-                    } else {
-                        setFlash('danger', 'Logo 上传失败：' . $uploadResult['error']);
+                    require_once __DIR__ . '/../includes/functions.php';
+
+                    $logoExt = strtolower(pathinfo($_FILES['site_logo_file']['name'], PATHINFO_EXTENSION));
+                    if (!in_array($logoExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true)) {
+                        setFlash('danger', 'Logo 上传失败：不支持的文件类型');
                         redirect(url('admin', ['action' => 'settings']));
                         return;
+                    }
+
+                    $ossConfig = getOssConfig();
+                    $useOss = false;
+                    if (!empty($ossConfig)) {
+                        require_once __DIR__ . '/../includes/OssService.php';
+                        $ossService = new OssService($ossConfig);
+                        $test = $ossService->testConnection();
+                        $useOss = !empty($test['success']);
+                    }
+
+                    if ($useOss) {
+                        // OSS 优先：生成唯一对象路径
+                        $dateY = date('Y');
+                        $dateM = date('m');
+                        $dateD = date('d');
+                        $dateStr = $dateY . '-' . $dateM . '-' . $dateD;
+                        $prefix = 'site/logos/' . $dateStr . '-';
+                        $objectKey = '';
+                        $maxAttempts = 100;
+                        for ($i = 1; $i <= $maxAttempts; $i++) {
+                            $candidate = $prefix . str_pad($i, 2, '0', STR_PAD_LEFT) . '.' . $logoExt;
+                            if (!$ossService->objectExists($candidate)) {
+                                $objectKey = $candidate;
+                                break;
+                            }
+                        }
+                        if ($objectKey === '') {
+                            $objectKey = $prefix . date('His') . '.' . $logoExt;
+                        }
+
+                        $logoContent = file_get_contents($_FILES['site_logo_file']['tmp_name']);
+                        $logoMime = $_FILES['site_logo_file']['type'] ?: 'image/' . $logoExt;
+                        $uploadResult = $ossService->putObject($objectKey, $logoContent, $logoMime);
+
+                        if ($uploadResult['success']) {
+                            // 删除旧 Logo
+                            $this->_deleteOldSiteLogo($siteLogo, $ossConfig);
+                            $siteLogo = $uploadResult['url'];
+                        } else {
+                            // OSS 上传失败时回退到本地
+                            $localResult = uploadImage($_FILES['site_logo_file'], 'logos');
+                            if ($localResult['success']) {
+                                $this->_deleteOldSiteLogo($siteLogo, $ossConfig);
+                                $siteLogo = $localResult['path'];
+                            } else {
+                                setFlash('danger', 'Logo 上传失败：' . $localResult['error']);
+                                redirect(url('admin', ['action' => 'settings']));
+                                return;
+                            }
+                        }
+                    } else {
+                        // OSS 未配置或不可用，使用本地存储
+                        $localResult = uploadImage($_FILES['site_logo_file'], 'logos');
+                        if ($localResult['success']) {
+                            $this->_deleteOldSiteLogo($siteLogo, $ossConfig);
+                            $siteLogo = $localResult['path'];
+                        } else {
+                            setFlash('danger', 'Logo 上传失败：' . $localResult['error']);
+                            redirect(url('admin', ['action' => 'settings']));
+                            return;
+                        }
                     }
                 }
 
@@ -1076,22 +1135,33 @@ class AdminController {
             'date_from' => getParam('date_from'),
             'date_to'   => getParam('date_to'),
         ];
-        $page   = max(1, (int) getParam('page', 1));
-        $result = $mediaModel->getList($filters, $page, 24);
+        // 分页参数：弹窗 JSON 接口使用 p（避免与路由 page=admin 冲突），独立页面使用 pg
+        $page   = max(1, (int) (getParam('p') ?: getParam('pg', 1)));
+        $result = $mediaModel->getList($filters, $page, 12);
         $stats  = $mediaModel->getStats();
 
         // AJAX 请求返回 JSON（供媒体库弹窗使用）
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        if ($isAjax && getParam('format') === 'json') {
             header('Content-Type: application/json');
             // 给每个 item 添加缩略图 URL
             foreach ($result['items'] as &$item) {
                 $item['thumbnail_url'] = ossImageUrl($item['oss_path'], 'thumbnail');
                 $item['preview_url']   = ossImageUrl($item['oss_path'], 'preview');
+                $item['original_url']  = $item['cdn_url'] ?: ossImageUrl($item['oss_path'], 'original');
+                $item['question_content'] = $item['question_content'] ?? null;
+                $item['uploader_name']     = $item['uploader_name'] ?? null;
             }
             unset($item);
             // 告知前端 OSS 是否已配置，弹窗可据此显示引导提示
             $result['oss_configured'] = $ossConfigured;
             echo json_encode($result);
+            return;
+        }
+
+        // AJAX 请求未指定 json 格式时返回局部 HTML（供独立媒体库页面无刷新搜索使用）
+        if ($isAjax) {
+            require_once __DIR__ . '/../views/admin/_media_grid.php';
             return;
         }
 
@@ -1190,13 +1260,44 @@ class AdminController {
             return;
         }
 
-        // 生成 OSS 对象路径
-        $objectKey = 'media/' . date('Y') . '/' . date('m') . '/' . bin2hex(random_bytes(8)) . '.' . $ext;
+        // MIME 校验通过，初始化 OSS 和数据库模型
+        require_once __DIR__ . '/../includes/OssService.php';
+        $oss = new OssService($config);
+        require_once __DIR__ . '/../models/Media.php';
+        $mediaModel = new MediaModel();
+
+        // 生成 OSS 对象路径：media/YYYY/MM/yyyy-mm-dd-ss.ext，确保唯一性
+        $dateY = date('Y');
+        $dateM = date('m');
+        $dateD = date('d');
+        $dateStr = $dateY . '-' . $dateM . '-' . $dateD;
+        $prefix = 'media/' . $dateY . '/' . $dateM . '/' . $dateStr . '-';
+        $sequence = $mediaModel->getMaxSequenceByPrefix($prefix);
+        $objectKey = '';
+        $maxAttempts = 999;
+        for ($i = 1; $i <= $maxAttempts; $i++) {
+            $candidateSeq = $sequence + $i;
+            if ($candidateSeq > 99) {
+                // 超出 ss 范围，转用更长的序号避免重复
+                break;
+            }
+            $candidate = $prefix . str_pad($candidateSeq, 2, '0', STR_PAD_LEFT) . '.' . $ext;
+            // 双重校验：数据库 + OSS 端
+            $dbExists = !empty($mediaModel->findByOssPath($candidate));
+            $ossExists = $oss->objectExists($candidate);
+            if (!$dbExists && !$ossExists) {
+                $objectKey = $candidate;
+                break;
+            }
+        }
+        if ($objectKey === '') {
+            // 备用：使用毫秒级时间戳确保唯一
+            $objectKey = $prefix . date('His') . '.' . $ext;
+        }
+
         $content = file_get_contents($file['tmp_name']);
 
         // 上传到 OSS
-        require_once __DIR__ . '/../includes/OssService.php';
-        $oss = new OssService($config);
         $uploadResult = $oss->putObject($objectKey, $content, $detectedMime);
 
         if (!$uploadResult['success']) {
@@ -1208,12 +1309,13 @@ class AdminController {
             return;
         }
 
+        // 从 objectKey 提取日期文件名作为展示用文件名（如 2026-07-18-01.png）
+        $savedFileName = basename($objectKey);
+
         // 记录到 media 表
-        require_once __DIR__ . '/../models/Media.php';
-        $mediaModel = new MediaModel();
         try {
             $mediaId = $mediaModel->create([
-                'file_name'   => $originalName,
+                'file_name'   => $savedFileName,
                 'file_size'   => $file['size'],
                 'mime_type'   => $detectedMime,
                 'oss_path'    => $objectKey,
@@ -1233,8 +1335,74 @@ class AdminController {
             'success'   => true,
             'url'       => $uploadResult['url'],
             'media_id'  => $mediaId,
-            'file_name' => $originalName,
+            'file_name' => $savedFileName,
             'file_size' => $file['size'],
         ]);
+    }
+
+    /**
+     * 将题目内容/解析中的图片与媒体库记录建立关联
+     * 解析 Markdown 图片语法和 HTML img 标签，按 CDN URL 匹配 media 表并写入 question_id
+     *
+     * @param int    $questionId  题目 ID
+     * @param string $content     题目内容
+     * @param string $explanation 题目解析
+     */
+    private function _associateMediaWithQuestion(int $questionId, string $content, string $explanation): void {
+        require_once __DIR__ . '/../models/Media.php';
+        $mediaModel = new MediaModel();
+
+        $text = $content . "\n" . $explanation;
+
+        // 提取 Markdown 图片: ![alt](url)
+        preg_match_all('/!\[[^\]]*\]\(([^)\s]+)\)/', $text, $mdMatches);
+        // 提取 HTML img: <img src="url">
+        preg_match_all('/<img[^>]+src=["\']([^"\']+)["\']/', $text, $htmlMatches);
+
+        $urls = array_merge($mdMatches[1] ?? [], $htmlMatches[1] ?? []);
+        $urls = array_unique(array_filter($urls));
+
+        foreach ($urls as $url) {
+            $mediaModel->updateQuestionIdByCdnUrl($url, $questionId);
+        }
+    }
+
+    /**
+     * 删除旧站点 Logo（支持本地路径和 OSS URL）
+     *
+     * @param string $oldLogo 旧的 site_logo 值
+     * @param array  $ossConfig OSS 配置
+     */
+    private function _deleteOldSiteLogo(string $oldLogo, array $ossConfig): void {
+        if ($oldLogo === '') return;
+
+        // 本地路径
+        if (strncmp($oldLogo, 'uploads/', 8) === 0) {
+            deleteUploadedImage($oldLogo);
+            return;
+        }
+
+        // OSS URL：尝试提取对象键并删除
+        if (!empty($ossConfig) && strncmp($oldLogo, 'http', 4) === 0) {
+            $bucket = $ossConfig['bucket'] ?? '';
+            $endpoint = $ossConfig['endpoint'] ?? '';
+            $cdnDomain = $ossConfig['cdn_domain'] ?? '';
+            $possibleHosts = array_filter([
+                $bucket . '.' . $endpoint,
+                $cdnDomain,
+            ]);
+            $parsed = parse_url($oldLogo);
+            $host = ($parsed['host'] ?? '') . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+            foreach ($possibleHosts as $possibleHost) {
+                if ($possibleHost !== '' && strcasecmp($host, $possibleHost) === 0) {
+                    $objectKey = ltrim($parsed['path'] ?? '', '/');
+                    if ($objectKey !== '') {
+                        $oss = new OssService($ossConfig);
+                        $oss->deleteObject($objectKey);
+                    }
+                    break;
+                }
+            }
+        }
     }
 }

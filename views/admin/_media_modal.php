@@ -27,7 +27,7 @@
                 <div class="row g-2 mb-3">
                     <div class="col-md-6">
                         <input type="text" id="modal-search-input" class="form-control form-control-sm"
-                               placeholder="搜索文件名...">
+                               placeholder="搜索文件名、题目标题或ID...">
                     </div>
                     <div class="col-md-3">
                         <span id="modal-upload-status" class="text-muted small"></span>
@@ -54,3 +54,5 @@
         </div>
     </div>
 </div>
+
+<?php include __DIR__ . '/_media_detail_modal.php'; ?>

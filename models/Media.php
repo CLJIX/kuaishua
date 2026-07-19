@@ -26,8 +26,15 @@ class MediaModel {
             $params = [];
 
             if (!empty($filters['keyword'])) {
-                $where[] = 'm.file_name LIKE :keyword';
-                $params[':keyword'] = '%' . $filters['keyword'] . '%';
+                $keyword = $filters['keyword'];
+                // 支持按文件名、题目标题模糊匹配；纯数字且大于0时同时匹配题目ID
+                if (ctype_digit($keyword) && (int) $keyword > 0) {
+                    $where[] = '(m.file_name LIKE :keyword OR q.content LIKE :keyword OR m.question_id = :question_id)';
+                    $params[':question_id'] = (int) $keyword;
+                } else {
+                    $where[] = '(m.file_name LIKE :keyword OR q.content LIKE :keyword)';
+                }
+                $params[':keyword'] = '%' . $keyword . '%';
             }
             if (!empty($filters['biz_type'])) {
                 $where[] = 'm.biz_type = :biz_type';
@@ -51,17 +58,18 @@ class MediaModel {
                 $whereClause = 'WHERE ' . implode(' AND ', $where);
             }
 
-            // 总数
-            $countSql = "SELECT COUNT(*) FROM media m {$whereClause}";
+            // 总数（需保持与分页查询一致的 JOIN，否则 WHERE 引用 q.content 会报错）
+            $countSql = "SELECT COUNT(*) FROM media m LEFT JOIN questions q ON m.question_id = q.id {$whereClause}";
             $countStmt = $this->db->prepare($countSql);
             $countStmt->execute($params);
             $total = (int) $countStmt->fetchColumn();
 
-            // 分页数据（LEFT JOIN questions 获取关联题目信息）
+            // 分页数据（LEFT JOIN questions 获取关联题目信息，LEFT JOIN users 获取上传者）
             $offset = ($page - 1) * $perPage;
-            $sql = "SELECT m.*, q.content AS question_content
+            $sql = "SELECT m.*, q.content AS question_content, u.username AS uploader_name
                     FROM media m
                     LEFT JOIN questions q ON m.question_id = q.id
+                    LEFT JOIN users u ON m.uploader_id = u.id
                     {$whereClause}
                     ORDER BY m.created_at DESC
                     LIMIT :offset, :per_page";
@@ -144,6 +152,47 @@ class MediaModel {
     }
 
     /**
+     * 获取指定日期前缀下已存在的最大序列号
+     * 用于生成 yyyy-mm-dd-ss 格式的文件名
+     *
+     * @param string $prefix 例如 "media/2026/07/2026-07-18-"
+     * @return int 最大序列号，不存在时返回 0
+     */
+    public function getMaxSequenceByPrefix(string $prefix): int {
+        try {
+            // 匹配 oss_path 以该前缀开头并以 .ext 结尾的记录，提取最大 ss
+            $stmt = $this->db->prepare(
+                "SELECT CAST(SUBSTRING_INDEX(SUBSTRING(oss_path FROM LENGTH(:prefix) + 1), '.', 1) AS UNSIGNED) AS seq " .
+                "FROM media WHERE oss_path LIKE :like_prefix ORDER BY seq DESC LIMIT 1"
+            );
+            $stmt->execute([
+                ':prefix' => $prefix,
+                ':like_prefix' => $prefix . '%',
+            ]);
+            $row = $stmt->fetch();
+            return $row && $row['seq'] ? (int) $row['seq'] : 0;
+        } catch (PDOException $e) {
+            error_log('获取媒体序列号失败: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 按 oss_path 查找媒体记录
+     */
+    public function findByOssPath(string $ossPath): ?array {
+        try {
+            $stmt = $this->db->prepare('SELECT * FROM media WHERE oss_path = :oss_path LIMIT 1');
+            $stmt->execute([':oss_path' => $ossPath]);
+            $row = $stmt->fetch();
+            return $row ?: null;
+        } catch (PDOException $e) {
+            error_log('按 oss_path 查找媒体记录失败: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 按题目 ID 查询关联媒体
      */
     public function getByQuestionId(int $questionId): array {
@@ -154,6 +203,24 @@ class MediaModel {
         } catch (PDOException $e) {
             error_log('查询题目关联媒体失败: ' . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * 根据 CDN URL 更新媒体的关联题目 ID
+     * 用于题目保存后将内容中的图片与题目建立关联
+     *
+     * @param string $cdnUrl     图片的 CDN 访问 URL
+     * @param int    $questionId 题目 ID
+     * @return bool 是否更新成功
+     */
+    public function updateQuestionIdByCdnUrl(string $cdnUrl, int $questionId): bool {
+        try {
+            $stmt = $this->db->prepare('UPDATE media SET question_id = :qid WHERE cdn_url = :url');
+            return $stmt->execute([':qid' => $questionId, ':url' => $cdnUrl]);
+        } catch (PDOException $e) {
+            error_log('更新媒体题目关联失败: ' . $e->getMessage());
+            return false;
         }
     }
 

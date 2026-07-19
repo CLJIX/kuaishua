@@ -166,6 +166,38 @@ $configured = $settings['oss_configured']    ?? false;
 </div>
 
 <script>
+// 将 OSS 报错信息格式化为纯文本，方便客户复制反馈给技术人员
+function buildErrorText(data) {
+    var lines = [];
+    lines.push('【OSS 连接测试报错】');
+    lines.push('时间：' + new Date().toLocaleString());
+    lines.push('错误：' + (data.message || '未知错误'));
+    if (data.debug) {
+        var d = data.debug;
+        lines.push('');
+        lines.push('--- 调试信息 ---');
+        lines.push('AK: ' + (d.ak_mask || '-'));
+        lines.push('Bucket: ' + (d.bucket || '-'));
+        lines.push('Region: ' + (d.region || '-'));
+        lines.push('Endpoint: ' + (d.endpoint || '-'));
+        lines.push('Host: ' + (d.host || '-'));
+        lines.push('HTTP状态码: ' + (d.http_code || '-'));
+        if (d.oss_error) lines.push('OSS错误码: ' + d.oss_error);
+        if (d.raw_body && d.raw_body !== '(empty)') {
+            lines.push('');
+            lines.push('--- 原始响应 ---');
+            lines.push(d.raw_body);
+        }
+        if (d.client_canonical_request) {
+            lines.push('');
+            lines.push('--- 客户端 CanonicalRequest ---');
+            lines.push(d.client_canonical_request);
+            lines.push('Signature: ' + (d.client_signature || '-'));
+        }
+    }
+    return lines.join('\n');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 密码显示/隐藏切换
     document.querySelectorAll('.toggle-pwd').forEach(function(btn) {
@@ -203,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var html = '<div class="alert ' + alertClass + '">' +
                     '<div class="d-flex align-items-start">' +
                     '<i class="bi ' + icon + ' me-2 mt-1"></i>' +
-                    '<div>' + (data.message || '未知结果');
+                    '<div class="flex-grow-1">' + (data.message || '未知结果');
 
                 // 失败时展示调试详情
                 if (!data.success && data.debug) {
@@ -233,11 +265,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 html += '</div></div>';
                 if (!data.success) {
-                    html += '<div class="text-muted small mt-2 ms-4">如您无法解决请联系技术人员</div>';
+                    html += '<div class="d-flex align-items-center gap-2 mt-2 ms-4">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger copy-error-btn">' +
+                            '<i class="bi bi-clipboard"></i> 一键复制报错</button>' +
+                            '<span class="text-muted small">如您无法解决请联系技术人员</span>' +
+                            '</div>';
                 }
                 html += '</div>';
                 resultDiv.innerHTML = html;
                 resultDiv.style.display = '';
+
+                // 绑定复制按钮
+                var copyBtn = resultDiv.querySelector('.copy-error-btn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', function() {
+                        var text = buildErrorText(data);
+                        navigator.clipboard.writeText(text).then(function() {
+                            copyBtn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+                            setTimeout(function() {
+                                copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 一键复制报错';
+                            }, 2000);
+                        }).catch(function() {
+                            prompt('请手动复制报错信息：', text);
+                        });
+                    });
+                }
             })
             .catch(function(err) {
                 resultDiv.innerHTML = '<div class="alert alert-danger">网络请求失败：' + err.message + '</div>';

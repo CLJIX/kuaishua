@@ -147,6 +147,39 @@ class OssService {
     }
 
     /**
+     * 检查 OSS 对象是否存在（HEAD Object）
+     *
+     * @param string $objectKey OSS 对象路径
+     * @return bool 是否存在
+     */
+    public function objectExists(string $objectKey): bool {
+        if (!$this->isConfigured()) return false;
+
+        $host = $this->bucket . '.' . $this->endpoint;
+        $url  = 'https://' . $host . '/' . ltrim($objectKey, '/');
+
+        $dateTime = gmdate('Ymd\THis\Z');
+
+        $headers = [
+            'host'               => $host,
+            'x-oss-content-sha256' => 'UNSIGNED-PAYLOAD',
+            'x-oss-date'         => $dateTime,
+        ];
+
+        $authorization = $this->buildAuthorization('HEAD', '/' . $this->bucket . '/' . ltrim($objectKey, '/'), [], $headers, 'UNSIGNED-PAYLOAD');
+
+        $requestHeaders = [
+            'Authorization: ' . $authorization,
+            'Host: ' . $host,
+            'x-oss-content-sha256: UNSIGNED-PAYLOAD',
+            'x-oss-date: ' . $dateTime,
+        ];
+
+        $response = $this->sendRequest('HEAD', $url, $requestHeaders);
+        return $response['http_code'] === 200;
+    }
+
+    /**
      * 连接测试（HEAD Bucket）
      *
      * @return array ['success' => bool, 'message' => string]

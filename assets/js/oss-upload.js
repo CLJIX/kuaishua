@@ -94,7 +94,7 @@
             if (!grid) return;
             grid.innerHTML = '<div class="text-center text-muted py-5"><div class="spinner-border spinner-border-sm"></div> 加载中...</div>';
 
-            var params = 'page=' + page;
+            var params = 'p=' + page + '&format=json';
             if (keyword) params += '&keyword=' + encodeURIComponent(keyword);
 
             fetch(MEDIA_API + '&' + params, {
@@ -150,15 +150,30 @@
         var html = '';
         items.forEach(function (item) {
             var isSelected = _selectedItems.some(function (s) { return s.media_id === item.id; });
+            var questionTitle = (item.question_content || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').substring(0, 30);
+            var displayTitle = questionTitle || (item.question_id ? '题目 #' + item.question_id : '');
+            var hasQuestion = !!item.question_id;
             html += '<div class="col-4 col-md-3 col-lg-2">' +
                 '<div class="media-modal-item border rounded p-1 cursor-pointer position-relative' +
                     (isSelected ? ' border-primary border-2' : '') + '" ' +
                     'data-id="' + item.id + '" ' +
                     'data-url="' + (item.cdn_url || item.preview_url || '') + '" ' +
-                    'data-filename="' + (item.file_name || '') + '">' +
+                    'data-filename="' + (item.file_name || '') + '" ' +
+                    'data-file-size="' + (item.file_size || 0) + '" ' +
+                    'data-mime-type="' + (item.mime_type || '') + '" ' +
+                    'data-uploader="' + (item.uploader_name || '') + '" ' +
+                    'data-created-at="' + (item.created_at || '') + '" ' +
+                    'data-biz-type="' + (item.biz_type || '') + '" ' +
+                    'data-question-id="' + (item.question_id || '') + '" ' +
+                    'data-question-title="' + (questionTitle.replace(/"/g, '&quot;')) + '" ' +
+                    'data-original-url="' + (item.original_url || item.cdn_url || item.preview_url || '') + '">' +
                     '<img src="' + (item.thumbnail_url || '') + '" ' +
                         'class="img-fluid w-100" style="height:100px;object-fit:cover" loading="lazy">' +
-                    '<div class="text-truncate small mt-1" style="font-size:0.7rem">' + (item.file_name || '') + '</div>' +
+                    '<div class="text-truncate small mt-1" style="font-size:0.7rem" title="' + (item.file_name || '') + '">' + (item.file_name || '') + '</div>' +
+                    '<div class="text-truncate small text-muted" style="font-size:0.65rem">' +
+                        (hasQuestion ? '<i class="bi bi-link-45deg"></i> ' + displayTitle : '未关联题目') +
+                    '</div>' +
+                    '<button type="button" class="btn btn-sm btn-link detail-btn p-0 text-decoration-none" style="font-size:0.7rem">查看详情</button>' +
                     (isSelected ? '<div class="position-absolute top-0 end-0 bg-primary text-white rounded-circle p-1" style="width:20px;height:20px;font-size:10px;line-height:1"><i class="bi bi-check"></i></div>' : '') +
                 '</div></div>';
         });
@@ -166,7 +181,8 @@
 
         // 绑定选择事件
         grid.querySelectorAll('.media-modal-item').forEach(function (el) {
-            el.addEventListener('click', function () {
+            el.addEventListener('click', function (e) {
+                if (e.target.closest('.detail-btn')) return;
                 var id = parseInt(this.dataset.id);
                 var idx = _selectedItems.findIndex(function (s) { return s.media_id === id; });
                 if (idx >= 0) {
@@ -188,6 +204,26 @@
                     this.appendChild(checkDiv);
                 }
                 MediaLibraryModal._updateConfirmBtn();
+            });
+        });
+
+        // 绑定详情按钮
+        grid.querySelectorAll('.detail-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var item = btn.closest('.media-modal-item');
+                if (!item) return;
+                window.MediaDetail.open({
+                    originalUrl: item.dataset.originalUrl,
+                    fileName: item.dataset.filename,
+                    fileSize: item.dataset.fileSize,
+                    mimeType: item.dataset.mimeType,
+                    uploader: item.dataset.uploader,
+                    createdAt: item.dataset.createdAt,
+                    bizType: item.dataset.bizType,
+                    questionId: item.dataset.questionId,
+                    questionTitle: item.dataset.questionTitle
+                });
             });
         });
     }
@@ -277,7 +313,21 @@
                                 errMsg += '\n\n===== 客户端 CanonicalRequest =====\n' + result.debug.client_canonical_request;
                             }
                             console.error('OSS上传失败debug:', result.debug || result);
-                            if (statusEl) statusEl.innerHTML = '<pre class="text-danger small mb-0" style="white-space:pre-wrap">' + errMsg.replace(/</g, '&lt;') + '</pre>';
+                            if (statusEl) {
+                                statusEl.innerHTML = '<pre class="text-danger small mb-1" style="white-space:pre-wrap">' + errMsg.replace(/</g, '&lt;') + '</pre>' +
+                                    '<button type="button" class="btn btn-sm btn-outline-danger copy-upload-error-btn"><i class="bi bi-clipboard"></i> 复制报错</button>';
+                                var copyBtn = statusEl.querySelector('.copy-upload-error-btn');
+                                if (copyBtn) {
+                                    copyBtn.addEventListener('click', function() {
+                                        navigator.clipboard.writeText(errMsg).then(function() {
+                                            copyBtn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+                                            setTimeout(function() { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 复制报错'; }, 2000);
+                                        }).catch(function() {
+                                            prompt('请手动复制报错信息：', errMsg);
+                                        });
+                                    });
+                                }
+                            }
                             return;
                         }
                         idx++;
@@ -340,7 +390,7 @@
                             msg += '\n\n===== 客户端 CanonicalRequest =====\n' + result.debug.client_canonical_request;
                         }
                         console.error('OSS上传失败debug:', result.debug || result);
-                        alert(msg);
+                        _showErrorToast(msg);
                     }
                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                 });
@@ -356,14 +406,99 @@
         ta.focus();
     }
 
+    // 显示带复制按钮的错误 Toast（用于粘贴上传失败等场景）
+    function _showErrorToast(msg) {
+        var container = document.getElementById('oss-error-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'oss-error-toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '1080';
+            document.body.appendChild(container);
+        }
+        var toastEl = document.createElement('div');
+        toastEl.className = 'toast align-items-center text-bg-danger border-0';
+        toastEl.setAttribute('role', 'alert');
+        toastEl.innerHTML =
+            '<div class="d-flex">' +
+            '<div class="toast-body" style="max-width:400px;white-space:pre-wrap;font-size:0.85rem">' + msg.replace(/</g, '&lt;') + '</div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+            '</div>' +
+            '<div class="toast-footer bg-danger border-top-0 pb-2 px-3">' +
+            '<button type="button" class="btn btn-sm btn-outline-light copy-toast-error-btn"><i class="bi bi-clipboard"></i> 一键复制报错</button>' +
+            '</div>';
+        container.appendChild(toastEl);
+
+        var toast = new bootstrap.Toast(toastEl, { delay: 15000 });
+        toast.show();
+
+        var copyBtn = toastEl.querySelector('.copy-toast-error-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(msg).then(function() {
+                    copyBtn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+                    setTimeout(function() { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 一键复制报错'; }, 2000);
+                }).catch(function() {
+                    prompt('请手动复制报错信息：', msg);
+                });
+            });
+        }
+
+        toastEl.addEventListener('hidden.bs.toast', function() {
+            toastEl.remove();
+        });
+    }
+
     function _getQuestionId(ta) {
-        // 尝试从表单中找到 question_id
+        // 优先从表单隐藏字段获取 question_id
         var wrap = ta.closest('.md-editor-wrap') || ta.closest('form');
-        if (!wrap) return null;
-        var idInput = wrap.querySelector('[name="id"]') || document.querySelector('input[name="id"]');
-        // 从 URL 中取
+        if (wrap) {
+            var idInput = wrap.querySelector('[name="id"]') || document.querySelector('input[name="id"]');
+            if (idInput && idInput.value) return idInput.value;
+        }
+        // 其次从 URL 中取
         var match = window.location.search.match(/[?&]id=(\d+)/);
         return match ? match[1] : null;
+    }
+
+    // =====================================================
+    // MediaDetail：图片详情弹窗
+    // =====================================================
+    window.MediaDetail = {
+        open: function (data) {
+            var modalEl = document.getElementById('mediaDetailModal');
+            if (!modalEl) return;
+            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+            document.getElementById('detail-image').src = data.originalUrl || '';
+            document.getElementById('detail-file-name').textContent = data.fileName || '';
+            document.getElementById('detail-file-size').textContent = _formatSize(data.fileSize || 0);
+            document.getElementById('detail-mime-type').textContent = data.mimeType || '';
+            document.getElementById('detail-uploader').textContent = data.uploader || '未知';
+            document.getElementById('detail-created-at').textContent = data.createdAt || '';
+            document.getElementById('detail-biz-type').textContent = data.bizType || '';
+
+            var questionEl = document.getElementById('detail-question');
+            var editLink = document.getElementById('detail-edit-link');
+            if (data.questionId) {
+                var title = (data.questionTitle || '题目 #' + data.questionId);
+                questionEl.innerHTML = '<a href="index.php?page=admin&amp;action=question_edit&amp;id=' + data.questionId + '" target="_blank">' + title + '</a>';
+                editLink.href = 'index.php?page=admin&action=question_edit&id=' + data.questionId;
+                editLink.style.display = '';
+            } else {
+                questionEl.textContent = '未关联题目';
+                editLink.style.display = 'none';
+            }
+
+            modal.show();
+        }
+    };
+
+    function _formatSize(bytes) {
+        if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+        if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+        if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes || 0) + ' B';
     }
 
     // =====================================================

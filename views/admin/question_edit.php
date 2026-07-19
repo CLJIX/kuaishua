@@ -89,9 +89,9 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                         <!-- 题面 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">题面</label>
-                            <div id="editor-content" class="md-editor-wrap">
+                            <div id="editor-content" class="md-editor-wrap" style="height:405px">
                                 <div class="md-toolbar"></div>
-                                <div class="md-body" style="height:360px">
+                                <div class="md-body">
                                     <textarea name="content" required placeholder="输入题目内容（支持 Markdown 格式）"><?= e($isEdit ? ($question['content'] ?? '') : '') ?></textarea>
                                     <div class="md-preview md-content"></div>
                                 </div>
@@ -153,36 +153,44 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                             <?php endif; ?>
                         </div>
 
-                        <!-- 选项区域（选择题专用） -->
+                        <!-- 选项区域（选择题专用，共用工具栏 + 焦点跟踪预览） -->
                         <div class="mb-3" id="options-section">
                             <label class="form-label fw-bold">选项</label>
-                            <div id="options-container">
-                                <?php
-                                // 编辑模式：加载现有选项；新增模式：默认显示 A/B/C/D
-                                $optionLabels = $isEdit ? array_keys($existingOptions) : ['A', 'B', 'C', 'D'];
-                                // 确保至少包含已有选项
-                                if ($isEdit && empty($optionLabels)) {
-                                    $optionLabels = ['A', 'B', 'C', 'D'];
-                                }
-                                foreach ($optionLabels as $label):
-                                ?>
-                                <div class="option-row d-flex align-items-start mb-2">
-                                    <span class="badge bg-primary me-2 mt-1" style="min-width:30px"><?= e($label) ?></span>
-                                    <textarea name="option_<?= e($label) ?>"
-                                              class="form-control"
-                                              rows="2"
-                                              placeholder="选项 <?= e($label) ?> 的内容（支持 Markdown 格式）"><?= e($isEdit ? ($existingOptions[$label] ?? '') : '') ?></textarea>
-                                    <button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2"
-                                            title="删除选项">
-                                        <i class="bi bi-x-lg"></i>
+                            <div id="options-editor" class="md-options-editor">
+                                <div class="md-toolbar"></div>
+                                <div class="md-options-body">
+                                    <div id="options-container" class="md-options-list">
+                                        <?php
+                                        // 编辑模式：加载现有选项；新增模式：默认显示 A/B/C/D
+                                        $optionLabels = $isEdit ? array_keys($existingOptions) : ['A', 'B', 'C', 'D'];
+                                        // 确保至少包含已有选项
+                                        if ($isEdit && empty($optionLabels)) {
+                                            $optionLabels = ['A', 'B', 'C', 'D'];
+                                        }
+                                        foreach ($optionLabels as $label):
+                                        ?>
+                                        <div class="option-row d-flex align-items-start mb-2">
+                                            <span class="badge bg-primary me-2 mt-1" style="min-width:30px"><?= e($label) ?></span>
+                                            <textarea name="option_<?= e($label) ?>"
+                                                      class="form-control"
+                                                      rows="3"
+                                                      placeholder="选项 <?= e($label) ?> 的内容（支持 Markdown 格式）"><?= e($isEdit ? ($existingOptions[$label] ?? '') : '') ?></textarea>
+                                            <button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2"
+                                                    title="删除选项">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <div class="md-options-preview md-content"></div>
+                                </div>
+                                <!-- 添加选项按钮 -->
+                                <div class="md-options-footer">
+                                    <button type="button" id="add-option-btn" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-plus"></i> 添加选项
                                     </button>
                                 </div>
-                                <?php endforeach; ?>
                             </div>
-                            <!-- 添加选项按钮 -->
-                            <button type="button" id="add-option-btn" class="btn btn-sm btn-outline-secondary mt-2">
-                                <i class="bi bi-plus"></i> 添加选项
-                            </button>
                         </div>
 
                         <!-- 正确答案（选择题专用） -->
@@ -209,9 +217,9 @@ $defaultLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
                         <!-- 解析 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">解析</label>
-                            <div id="editor-explanation" class="md-editor-wrap">
+                            <div id="editor-explanation" class="md-editor-wrap" style="height:325px">
                                 <div class="md-toolbar"></div>
-                                <div class="md-body" style="height:280px">
+                                <div class="md-body">
                                     <textarea name="explanation" placeholder="题目解析（可选，支持 Markdown 格式）"><?= e($isEdit ? ($question['explanation'] ?? '') : '') ?></textarea>
                                     <div class="md-preview md-content"></div>
                                 </div>
@@ -278,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var row = document.createElement('div');
             row.className = 'option-row d-flex align-items-start mb-2';
             row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + item[0] + '</span>' +
-                '<textarea name="option_' + item[0] + '" class="form-control" rows="2">' + item[1] + '</textarea>';
+                '<textarea name="option_' + item[0] + '" class="form-control" rows="3">' + item[1] + '</textarea>';
             container.appendChild(row);
         });
         addBtn.style.display = 'none';
@@ -304,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var row = document.createElement('div');
             row.className = 'option-row d-flex align-items-start mb-2';
             row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + label + '</span>' +
-                '<textarea name="option_' + label + '" class="form-control" rows="2" placeholder="选项 ' + label + ' 的内容（支持 Markdown 格式）"></textarea>' +
+                '<textarea name="option_' + label + '" class="form-control" rows="3" placeholder="选项 ' + label + ' 的内容（支持 Markdown 格式）"></textarea>' +
                 '<button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2" title="删除选项">' +
                 '<i class="bi bi-x-lg"></i></button>';
             container.appendChild(row);
@@ -359,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var row = document.createElement('div');
         row.className = 'option-row d-flex align-items-start mb-2';
         row.innerHTML = '<span class="badge bg-primary me-2 mt-1" style="min-width:30px">' + nextLabel + '</span>' +
-            '<textarea name="option_' + nextLabel + '" class="form-control" rows="2" placeholder="选项 ' + nextLabel + ' 的内容（支持 Markdown 格式）"></textarea>' +
+            '<textarea name="option_' + nextLabel + '" class="form-control" rows="3" placeholder="选项 ' + nextLabel + ' 的内容（支持 Markdown 格式）"></textarea>' +
             '<button type="button" class="remove-option-btn btn btn-sm btn-outline-danger ms-2" title="删除选项">' +
             '<i class="bi bi-x-lg"></i></button>';
         container.appendChild(row);
@@ -382,6 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // ---- 轻量 Markdown 编辑器初始化 ----
     mdEditorInit('editor-content');
     mdEditorInit('editor-explanation');
+
+    // 选项编辑器初始化（共用工具栏 + 焦点跟踪预览）
+    mdOptionsEditorInit('options-editor');
 
     // ---- 初始化 OSS 上传组件（粘贴上传 + 媒体库弹窗） ----
     if (typeof initOssUpload === 'function') {

@@ -411,7 +411,7 @@
 
 /* ===== 列表页 Markdown 预览（固定高度，不影响布局）===== */
 .md-excerpt-preview {
-    max-height: 4.5em;          /* 约 3 行高度 */
+    height: 4.5em;              /* 固定 3 行高度，统一题目框高度 */
     overflow: hidden;
     line-height: 1.5;
     font-size: 0.9rem;
@@ -419,6 +419,19 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     pointer-events: none;       /* 列表项整体可点击，内部不拦截 */
+    position: relative;
+}
+
+/* 底部渐隐遮罩，提示内容被截断 */
+.md-excerpt-preview::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1.5em;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+    pointer-events: none;
 }
 
 /* 内部元素尺寸限制，防止撑高容器 */
@@ -438,9 +451,7 @@
 }
 
 .md-excerpt-preview img {
-    max-height: 2em;
-    width: auto;
-    vertical-align: middle;
+    display: none;              /* 列表预览中不加载图片，加快显示速度 */
 }
 
 .md-excerpt-preview pre {
@@ -480,6 +491,8 @@
 
 /* ===== 轻量 Markdown 编辑器 ===== */
 .md-editor-wrap {
+    display: flex;
+    flex-direction: column;
     border: 1px solid #dee2e6;
     border-radius: 0.375rem;
     overflow: hidden;
@@ -509,6 +522,7 @@
     padding: 6px 8px;
     background: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
 }
 
 .md-btn {
@@ -538,19 +552,19 @@
 
 .md-body {
     display: flex;
+    flex: 1 1 auto;
     min-height: 0;
-    height: 100%;
 }
 
-/* 全屏时 md-body 填满整个编辑器 */
+/* 全屏时 md-body 自动填满剩余空间（flex:1 生效，无需固定 calc） */
 .md-fullscreen .md-body {
-    height: calc(100vh - 45px); /* 减去工具栏高度 */
+    height: auto;
 }
 
 .md-body textarea {
     flex: 1;
     min-width: 0;
-    height: 100%;
+    min-height: 0;
     border: none;
     outline: none;
     resize: none;
@@ -560,12 +574,13 @@
     line-height: 1.6;
     background: #fff;
     box-sizing: border-box;
+    overflow-y: auto;
 }
 
 .md-preview {
     flex: 1;
     min-width: 0;
-    height: 100%;
+    min-height: 0;
     padding: 12px;
     border-left: 1px solid #dee2e6;
     overflow-y: auto;
@@ -573,7 +588,81 @@
     box-sizing: border-box;
 }
 
+/* ===== 选项编辑器（共用工具栏 + 焦点跟踪预览） ===== */
+.md-options-editor {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    resize: vertical;
+    min-height: 260px;
+    height: 380px;
+}
+
+/* 选项编辑器全屏模式 */
+.md-options-editor.md-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    border: none;
+    border-radius: 0;
+    resize: none;
+    background: #fff;
+}
+
+.md-options-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.md-options-list {
+    flex: 1;
+    min-width: 0;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.md-options-preview {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    border-left: 1px solid #dee2e6;
+    overflow-y: auto;
+    background: #fdfdfd;
+    box-sizing: border-box;
+}
+
+.md-options-footer {
+    padding: 8px 12px;
+    border-top: 1px solid #dee2e6;
+    background: #f8f9fa;
+    flex-shrink: 0;
+}
+
+/* 选项预览区：每个选项分组样式 */
+.md-option-preview-item {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #e9ecef;
+}
+.md-option-preview-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.md-option-preview-label {
+    margin-bottom: 4px;
+}
+
 @media (max-width: 768px) {
     .md-body { flex-direction: column; }
     .md-preview { border-left: none; border-top: 1px solid #dee2e6; max-height: 200px; }
+    .md-options-body { flex-direction: column; }
+    .md-options-preview { border-left: none; border-top: 1px solid #dee2e6; max-height: 160px; }
 }

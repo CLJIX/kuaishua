@@ -58,7 +58,7 @@ class QuestionController {
         $page = max(1, (int) getParam('page', 1));
 
         // 每页显示 20 条
-        $result = $this->questionModel->getList($filters, $page, 20);
+        $result = $this->questionModel->getList($filters, $page, 50);
 
         // 供筛选下拉框使用的数据
         $categories = $this->categoryModel->getAll();
